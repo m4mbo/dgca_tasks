@@ -1,1 +1,1 @@
-# DGCA-M for Functional RNNs 
+# DGCA-M for Task-oriented ESN growth
