@@ -59,7 +59,6 @@ mga = ChromosomalMGA(popsize=POPULATION_SIZE,
                      cross_style=CROSS_STYLE,
                      parquet_filename="fitness.parquet"
                      )
-reservoir.draw_gt()
 #%%
 mga.run(steps=NUM_TRIALS)
 
