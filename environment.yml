@@ -1,0 +1,13 @@
+name: dgca_tasks
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - graph-tool
+  - tqdm
+  - numpy
+  - pandas
+  - pyarrow
+  - pip:
+    - wrapt_timeout_decorator
+    - multiset

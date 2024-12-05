@@ -1,0 +1,4 @@
+papers/
+notebooks/
+*.pyc
+fitness.parquet
