@@ -51,7 +51,6 @@ class DGCA_M(object):
         
         return Reservoir(A_new, S_new, res.n_fixed) 
        
-
     def update_state(self, res: Reservoir):
         """
         Second SLP.

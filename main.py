@@ -6,7 +6,7 @@ from dgca.reservoir import Reservoir
 from evolve.fitness import NarmaFitness
 from evolve.mga import ChromosomalMGA, EvolvableDGCA
 
-def getMats(n_fixed, n_states):
+def get_seed(n_fixed, n_states):
     
     n_nodes = n_fixed + 1
     A = np.zeros((n_nodes, n_nodes), dtype=int)
@@ -44,7 +44,7 @@ fitness_fn = NarmaFitness(conditions=conditions,
                           verbose=False, 
                           order=ORDER)
 
-A, S = getMats(N_FIXED, 3)
+A, S = get_seed(N_FIXED, 3)
 
 reservoir = Reservoir(A=A, S=S, n_fixed=N_FIXED)
 model = EvolvableDGCA(n_states=reservoir.n_states)  
