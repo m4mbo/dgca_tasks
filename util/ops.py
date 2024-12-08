@@ -1,5 +1,4 @@
 import numpy as np
-from dgca.reservoir import Reservoir
 
 NRMSE = lambda y,y_fit: np.mean(((y-y_fit)**2)/np.var(y))
 MAE = lambda y,y_fit: np.mean(np.abs(y, y_fit))
@@ -17,3 +16,19 @@ def rindex(it, li):
     index of last occurence of item in list
     """
     return len(li) - 1 - li[::-1].index(it)
+
+def dfs_directed(A: np.ndarray, current: int, visited: set) -> bool:
+    """
+    Perform a recursive DFS on a directed adjacency matrix
+    """
+    # current node as visited
+    visited.add(current)
+    
+    # visit neighbors
+    neighbors = np.nonzero(A[current])[0]  # directed neighbors
+    for neighbor in neighbors:
+        if neighbor not in visited:
+            if dfs_directed(A, neighbor, visited):
+                return True
+    
+    return False

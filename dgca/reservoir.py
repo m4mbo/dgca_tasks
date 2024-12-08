@@ -4,6 +4,7 @@ from wrapt_timeout_decorator.wrapt_timeout_decorator import timeout
 import matplotlib.pyplot as plt
 from multiset import FrozenMultiset
 from scipy.sparse.csgraph import connected_components
+from util.ops import dfs_directed
 
 
 class Reservoir(object):
@@ -211,6 +212,22 @@ class Reservoir(object):
                                           subgraph=False)
         # is isomorphic if at least one mapping was found
         return False if len(mapping)==0 else True
+    
+    def end_to_end(self) -> bool:
+        """
+        Check if there is a path from every input node to at least one output node.
+        """
+        input_nodes = range(self.n_fixed // 2)
+        output_nodes = range(self.n_fixed // 2, self.n_fixed)
+        
+        for input_node in input_nodes:
+            visited = set()
+            # DFS from input
+            dfs_directed(self.A, input_node, visited)
+            if not any(output_node in visited for output_node in output_nodes):
+                return False
+        
+        return True
 
     def no_selfloops(self) -> "Reservoir":
         """
@@ -259,6 +276,11 @@ class Reservoir(object):
             if size > conditions['max_size']:
                 if verbose:
                     print('Graph too big (should not happen!)')
+                return False
+        if 'end_to_end' in conditions:
+            if not self.end_to_end() and conditions['end_to_end']:
+                if verbose:
+                    print('No I/O path.')
                 return False
         if 'min_size' in conditions:
             if size < conditions['min_size']:

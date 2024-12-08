@@ -35,10 +35,11 @@ ORDER = 10
 N_FIXED = 6
 
 conditions = {'max_size': 300, 
-              'min_size': 30, 
+              'min_size': N_FIXED+1, 
               'min_connectivity': 0.002, 
               'max_connectivity': 0.04, 
-              'min_component_frac': 0.4}
+              'min_component_frac': 0.4,
+              'end_to_end': True}
 
 fitness_fn = NarmaFitness(conditions=conditions, 
                           verbose=False, 
