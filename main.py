@@ -32,13 +32,9 @@ CROSS_RATE = 0.5
 CROSS_STYLE = 'cols'
 NUM_TRIALS = 5000
 ORDER = 10
-N_FIXED = 6
+N_FIXED = 8
 
-conditions = {'max_size': 300, 
-              'min_size': N_FIXED+1, 
-              'min_connectivity': 0.002, 
-              'max_connectivity': 0.04, 
-              'min_component_frac': 0.4,
+conditions = {'min_size': N_FIXED+1,
               'end_to_end': True}
 
 fitness_fn = NarmaFitness(conditions=conditions, 

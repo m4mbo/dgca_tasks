@@ -1,6 +1,12 @@
 from dgca.reservoir import Reservoir
 from dgca.dgca_m import DGCA_M
-from util.ops import rindex
+
+def rindex(it, li):
+    """
+    Reverse index() ie.
+    index of last occurence of item in list
+    """
+    return len(li) - 1 - li[::-1].index(it)
 
 class Runner:
     """

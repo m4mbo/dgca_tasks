@@ -1,7 +1,14 @@
 import numpy as np
-from util.ops import one_hot
 from util.consts import Q_B, Q_F, Q_M, Q_N
 from dgca.reservoir import Reservoir
+
+def one_hot(x: np.ndarray):
+    """
+    Helper function to on hot encode an array x.
+    """
+    tf = x == np.max(x, axis=0, keepdims=True)
+    return tf.astype(int)
+
 
 class DGCA_M(object):
     def __init__(self, n_states: int=None):
@@ -15,22 +22,22 @@ class DGCA_M(object):
         First SLP.
         """
         G = res.get_neighbourhood()
-        C = (G @ self.w_action).T  # 15 x N
+        C = (G @ self.w_action).T   # 15 x N
         K = one_hot(C) 
         
         remove = K[0]
-        noaction = K[1]
+        _ = K[1]                    # no action
         divide = K[2]
 
-        remove[:res.n_fixed] = 0   # I/O nodes
-        divide[:res.n_fixed] = 0   # I/O nodes
+        remove[:res.n_fixed] = 0    # I/O nodes
+        divide[:res.n_fixed] = 0    # I/O nodes
 
         keep = np.hstack((np.logical_not(remove), divide)).astype(bool)
 
         # new node wiring
-        fe = K[3:7]     # from existing
-        te = K[7:11]    # to existing
-        tn = K[11:]     # to new
+        fe = K[3:7]                 # from existing
+        te = K[7:11]                # to existing
+        tn = K[11:]                 # to new
 
         _, k_fi, k_fa, k_ft = fe[0], fe[1], fe[2], fe[3]
         _, k_bi, k_ba, k_bt = te[0], te[1], te[2], te[3]
@@ -75,7 +82,6 @@ class DGCA_M(object):
         out.w_action = np.copy(self.w_action)
         out.w_state = np.copy(self.w_state)
         return out
-
 
 
 

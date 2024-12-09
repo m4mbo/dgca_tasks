@@ -1,7 +1,8 @@
 import numpy as np
-from dgca.reservoir import Reservoir
+from dgca.reservoir import Reservoir, check_conditions
 from tasks.narma import narma_sequence, fit_model
-from util.ops import NRMSE
+
+NRMSE = lambda y,y_fit: np.mean(((y-y_fit)**2)/np.var(y))
 
 class GraphFitness:
     """
@@ -35,7 +36,7 @@ class NarmaFitness(GraphFitness):
 
     def __call__(self, res: Reservoir) -> float:
         
-        checks_ok = res.check_conditions(self.conditions, self.verbose)
+        checks_ok = check_conditions(res, self.conditions, self.verbose)
         
         if checks_ok:   
             u, y = narma_sequence(2000, self.order)

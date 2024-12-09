@@ -4,7 +4,64 @@ from wrapt_timeout_decorator.wrapt_timeout_decorator import timeout
 import matplotlib.pyplot as plt
 from multiset import FrozenMultiset
 from scipy.sparse.csgraph import connected_components
-from util.ops import dfs_directed
+from util.consts import POLAR_TABLE
+
+
+def check_conditions(res: "Reservoir",
+                     conditions: dict, 
+                     verbose: bool=False) -> bool:
+    size = res.size()
+    conn = res.connectivity()
+    frag = res.get_largest_component_frac()
+    if 'max_size' in conditions:
+        # should already be fine but double check
+        if size > conditions['max_size']:
+            if verbose:
+                print('Graph too big (should not happen!)')
+            return False
+    if 'end2end' in conditions:
+        if not res.end2end() and conditions['end_to_end']:
+            if verbose:
+                print('No I/O path.')
+            return False
+    if 'min_size' in conditions:
+        if size < conditions['min_size']:
+            if verbose:
+                print('Graph too small.')
+            return False
+    if 'min_connectivity' in conditions:
+        if conn < conditions['min_connectivity']:
+            if verbose:
+                print('Graph too sparse')
+            return False
+    if 'max_connectivity' in conditions:
+        if conn > conditions['max_connectivity']:
+            if verbose:
+                print('Graph too dense')
+            return False
+    if 'min_component_frac' in conditions:
+        if frag < conditions['min_component_frac']:
+            if verbose:
+                print('Graph too fragmented')
+            return False
+    if verbose:
+        print(f'Graph OK: size={size}, conn={conn*100:.2f}%, frag={frag:.2f}')
+    return True
+
+def dfs_directed(A: np.ndarray, current: int, visited: set) -> bool:
+    """
+    Perform a recursive DFS on a directed adjacency matrix
+    """
+    # current node as visited
+    visited.add(current) 
+    
+    # visit neighbors
+    neighbors = np.nonzero(A[current])[0]  # directed neighbors
+    for neighbor in neighbors:
+        if neighbor not in visited:
+            if dfs_directed(A, neighbor, visited):
+                return True
+    return False
 
 
 class Reservoir(object):
@@ -57,7 +114,7 @@ class Reservoir(object):
         """
         return np.argmax(self.S, axis=1).tolist()
     
-    def handle_IO_nodes(self, g: gt.Graph, 
+    def pp_io(self, g: gt.Graph, 
                         pos: gt.VertexPropertyMap = None) -> gt.VertexPropertyMap:
         """
         Handles positioning of nodes, ensuring consistent spacing for input/output nodes
@@ -137,11 +194,9 @@ class Reservoir(object):
             state_colors = cmap(states_1d)
             g.vp['plot_color'] = g.new_vertex_property('vector<double>', state_colors)
             # helper to set IO positions and colors
-            self.handle_IO_nodes(g, pos=pos)
-
+            self.pp_io(g, pos=pos)
         return g
 
-    
     def draw_gt(self, draw_edge_wgt: bool=False,
                 pos: gt.VertexPropertyMap=None,
                 interactive: bool=False,
@@ -175,7 +230,6 @@ class Reservoir(object):
                 vertex_color=g.vp['outline_color'], 
                 edge_pen_width=edge_pen_width, **kwargs
             )
-
         return pos_out
 
     def state_hash(self) -> int:
@@ -213,7 +267,7 @@ class Reservoir(object):
         # is isomorphic if at least one mapping was found
         return False if len(mapping)==0 else True
     
-    def end_to_end(self) -> bool:
+    def end2end(self) -> bool:
         """
         Check if there is a path from every input node to at least one output node.
         """
@@ -264,44 +318,3 @@ class Reservoir(object):
 
     def copy(self):
         return(np.copy(self.A), np.copy(self.S), self.n_fixed)
-    
-    def check_conditions(self, 
-                         conditions: dict, 
-                         verbose: bool=False) -> bool:
-        size = self.size()
-        conn = self.connectivity()
-        frag = self.get_largest_component_frac()
-        if 'max_size' in conditions:
-            # should already be fine but double check
-            if size > conditions['max_size']:
-                if verbose:
-                    print('Graph too big (should not happen!)')
-                return False
-        if 'end_to_end' in conditions:
-            if not self.end_to_end() and conditions['end_to_end']:
-                if verbose:
-                    print('No I/O path.')
-                return False
-        if 'min_size' in conditions:
-            if size < conditions['min_size']:
-                if verbose:
-                    print('Graph too small.')
-                return False
-        if 'min_connectivity' in conditions:
-            if conn < conditions['min_connectivity']:
-                if verbose:
-                    print('Graph too sparse')
-                return False
-        if 'max_connectivity' in conditions:
-            if conn > conditions['max_connectivity']:
-                if verbose:
-                    print('Graph too dense')
-                return False
-        if 'min_component_frac' in conditions:
-            if frag < conditions['min_component_frac']:
-                if verbose:
-                    print('Graph too fragmented')
-                return False
-        if verbose:
-            print(f'Graph OK: size={size}, conn={conn*100:.2f}%, frag={frag:.2f}')
-        return True
