@@ -8,15 +8,15 @@ def narma_sequence(t, x=10):
     # input
     u = np.random.uniform(0, 0.5, t).astype(np.float64)
     # NARMA sequence
-    y = np.zeros(t, dtype=np.float64) + 1e-6
+    y = np.zeros(t, dtype=np.float64)
 
     for i in range(t-1):
         sum_t = np.sum(y[max(0, i-x):i+1])  # no negative indices
-        sum_t = np.clip(sum_t, -1e6, 1e6)
         if i >= 9:
             y[i] = 0.3 * y[i-1] + 0.05 * y[i-1] * sum_t + 1.5 * u[i] * u[i-x] + 0.1
         else:
             y[i] = 0.3 * y[i-1] + 0.05 * y[i-1] * sum_t + 0.1  # no input contribution if i < 9
+        y[i] = np.clip(y[i], -1e6, 1e6)
 
     # discard transient effects from first 20 steps
     u = u[np.newaxis, 20:]
