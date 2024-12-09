@@ -6,9 +6,9 @@ def narma_sequence(t, x=10):
     Creates NARMA-X sequence for t timesteps, where X is the order of the system.
     """
     # input
-    u = np.random.uniform(0, 0.5, t)
+    u = np.random.uniform(0, 0.5, t).astype(np.float64)
     # NARMA sequence
-    y = np.zeros(t)
+    y = np.zeros(t, dtype=np.float64) + 1e-6
 
     for i in range(t-1):
         sum_t = np.sum(y[max(0, i-x):i+1])  # no negative indices
