@@ -58,7 +58,10 @@ def fit_model(u, w_in, w_res, inputgain, feedbackgain, n_fixed, y_train=None):
         # Tikhonov regularization to fit and generalize on unseen data
         regression = linfit.BayesianRidge(max_iter=3000, tol=1e-6, verbose=False, fit_intercept=False)
         # remove first element as it does not consider previous state
-        regression.fit(reservoir_state[:,1:].T, y_train[0,1:])
+        try:
+            regression.fit(reservoir_state[:,1:].T, y_train[0,1:])
+        except ValueError as e:
+            print(y_train[0,1:])
         w_out = regression.coef_
     
     return w_out, reservoir_state
