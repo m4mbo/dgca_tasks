@@ -12,6 +12,7 @@ def narma_sequence(t, x=10):
 
     for i in range(t-1):
         sum_t = np.sum(y[max(0, i-x):i+1])  # no negative indices
+        sum_t = np.clip(sum_t, -1e6, 1e6)
         if i >= 9:
             y[i] = 0.3 * y[i-1] + 0.05 * y[i-1] * sum_t + 1.5 * u[i] * u[i-x] + 0.1
         else:
