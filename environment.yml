@@ -6,7 +6,7 @@ dependencies:
   - graph-tool
   - tqdm
   - numpy
-  - pandas
+  - pandas  
   - pyarrow
   - scikit-learn
   - jsonpickle  
