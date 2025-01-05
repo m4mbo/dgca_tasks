@@ -33,18 +33,18 @@ class NarmaFitness(GraphFitness):
         self.feedback_gain = feedback_gain
         self.skip_count = 0
         self.memo = {'fitness':[], 'graph':[], 'model':[]}
+        self.u, self.y = narma_sequence(2000, self.order)
 
     def __call__(self, res: Reservoir) -> float:
         
         checks_ok = check_conditions(res, self.conditions, self.verbose)
         
         if checks_ok:   
-            u, y = narma_sequence(2000, self.order)
             w_in = np.random.randint(-1, 2, (1, res.size()))
             w_in[:, res.n_fixed//2:] = 0  # masking all nodes except input
-            w_out, state = fit_model(u, w_in, res.A, self.input_gain, self.feedback_gain, y_train=y, n_fixed=res.n_fixed)
+            w_out, state = fit_model(self.u, w_in, res.A, self.input_gain, self.feedback_gain, y_train=self.y, n_fixed=res.n_fixed)
             y_fit = w_out.T @ state
-            err = NRMSE(y, y_fit)     # normalized root mean square error
+            err = NRMSE(self.y, y_fit)     # normalized root mean square error
             if self.verbose:
                 print(f'Skipped {self.skip_count}')
             self.skip_count = 0
