@@ -34,7 +34,8 @@ NUM_TRIALS = 5000
 ORDER = 10
 N_FIXED = 8
 
-conditions = {'min_size': N_FIXED+1,
+# min_conenctivity
+conditions = {'min_size': N_FIXED+20,
               'end_to_end': True}
 
 fitness_fn = NarmaFitness(conditions=conditions, 
