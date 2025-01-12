@@ -2,7 +2,7 @@ import numpy as np
 from util.consts import Q_B, Q_F, Q_M, Q_N
 from dgca.reservoir import Reservoir
 
-def one_hot(x: np.ndarray):
+def onehot(x: np.ndarray):
     """
     Helper function to on hot encode an array x.
     """
@@ -21,42 +21,44 @@ class DGCA_M(object):
         """
         First SLP.
         """
-        G = res.get_neighbourhood()
-        C = (G @ self.w_action).T   # 15 x N
-        K = one_hot(C) 
-        
-        remove = K[0]
-        _ = K[1]                    # no action
-        divide = K[2]
+        C = res.get_neighbourhood()
+        D = C @ self.w_action   # N x 15
+
+        # one hot in sections
+        K = np.hstack((onehot(D[:,0:3]), onehot(D[:,3:7]), onehot(D[:,7:11]), onehot(D[:,11:15])))
+        K = K.T 
+
+        # action choices
+        remove = K[0,:]
+        noaction = K[1,:]
+        divide = K[2,:]
 
         remove[:res.n_fixed] = 0    # I/O nodes
-        divide[:res.n_fixed] = 0    # I/O nodes
+        # divide[:res.n_fixed] = 0    # I/O nodes
 
         keep = np.hstack((np.logical_not(remove), divide)).astype(bool)
-
+        
         # new node wiring
-        fe = K[3:7]                 # from existing
-        te = K[7:11]                # to existing
-        tn = K[11:]                 # to new
+        _, k_fi, k_fa, k_ft = K[3, :], K[4, :], K[5, :], K[6, :]
+        _, k_bi, k_ba, k_bt = K[7, :], K[8, :], K[9, :], K[10,:]
+        _, k_ni, k_na, k_nt = K[11,:], K[12,:], K[13,:], K[14,:]
 
-        _, k_fi, k_fa, k_ft = fe[0], fe[1], fe[2], fe[3]
-        _, k_bi, k_ba, k_bt = te[0], te[1], te[2], te[3]
-        _, k_ni, k_na, k_nt = tn[0], tn[1], tn[2], tn[3]
-
-        A = res.A
         I = np.eye(res.size())
 
-        upper_left = np.kron(Q_M, A)   # remains untouched
-        upper_right = np.kron(Q_F, (I @ np.diag(k_fi) + A @ np.diag(k_fa) + A.T @ np.diag(k_ft)))
-        lower_left = np.kron(Q_B, (np.diag(k_bi) @ I + np.diag(k_ba) @ A + np.diag(k_bt) @ A.T))
-        lower_right = np.kron(Q_N, (np.diag(k_ni) @ I + np.diag(k_na) @ A + np.diag(k_nt) @ A.T))
-
-        A_new = upper_left + upper_right + lower_left + lower_right     # 2N x 2N, assuming all nodes divide
+        A, S = res.A, res.S
+        A_new = np.kron(Q_M, A) \
+            + np.kron(Q_F, (I @ np.diag(k_fi) + A @ np.diag(k_fa) + A.T @ np.diag(k_ft))) \
+            + np.kron(Q_B, (np.diag(k_bi) @ I + np.diag(k_ba) @ A + np.diag(k_bt) @ A.T)) \
+            + np.kron(Q_N, (np.diag(k_ni) @ I + np.diag(k_na) @ A + np.diag(k_nt) @ A.T))
+        
+        # keep only the nodes we need
         A_new = A_new[keep,:][:,keep]
 
-        S_new = np.vstack((res.S, res.S))[keep,:] 
-        
-        return Reservoir(A_new, S_new, res.n_fixed) 
+        # duplicate relevant cols of state matrix
+        S_new = np.vstack((S, S))
+        S_new = S_new[keep,:]
+
+        return Reservoir(A_new, S_new, res.n_fixed)
        
     def update_state(self, res: Reservoir):
         """
@@ -64,7 +66,7 @@ class DGCA_M(object):
         """
         G = res.get_neighbourhood()
         C = G @ self.w_state  # N x S
-        return Reservoir(res.A, one_hot(C), res.n_fixed)
+        return Reservoir(res.A, onehot(C), res.n_fixed)
 
     def step(self, res: Reservoir):
         """

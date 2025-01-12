@@ -32,14 +32,15 @@ CROSS_RATE = 0.5
 CROSS_STYLE = 'cols'
 NUM_TRIALS = 5000
 ORDER = 10
-N_FIXED = 8
+N_FIXED = 10
 
 # min_conenctivity
 conditions = {'min_size': N_FIXED+20,
-              'end_to_end': True}
+              'end2end': True,
+              'min_connectivity': 0.002}
 
 fitness_fn = NarmaFitness(conditions=conditions, 
-                          verbose=False, 
+                          verbose=True, 
                           order=ORDER)
 
 A, S = get_seed(N_FIXED, 3)

@@ -20,7 +20,7 @@ def check_conditions(res: "Reservoir",
                 print('Graph too big (should not happen!)')
             return False
     if 'end2end' in conditions:
-        if not res.end2end() and conditions['end_to_end']:
+        if not res.end2end() and conditions['end2end']:
             if verbose:
                 print('No I/O path.')
             return False
@@ -96,7 +96,9 @@ class Reservoir(object):
         c_out = self.A @ self.S   # N x S
         G = np.hstack([self.S, c_in, c_out])  # N x 3S
         bias_column = np.ones((G.shape[0], 1))  # N x 1
-        return np.hstack([G, bias_column])  # N x (3S + 1)
+        out = np.hstack([G, bias_column])  # N x (3S + 1)
+        out = out / np.max(np.abs(out), axis=1, keepdims=True)
+        return out
     
     def to_edgelist(self) -> np.ndarray:
         """
@@ -240,7 +242,7 @@ class Reservoir(object):
         different).
         """
         return hash(FrozenMultiset(map(tuple, self.get_neighbourhood().tolist())))
-    
+
     @timeout(5, use_signals=False)
     def is_isomorphic(self, other: "Reservoir") -> bool:
         """
