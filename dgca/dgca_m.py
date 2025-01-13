@@ -6,7 +6,7 @@ def onehot(x: np.ndarray):
     """
     Helper function to on hot encode an array x.
     """
-    tf = x == np.max(x, axis=0, keepdims=True)
+    tf = x == np.max(x, axis=1, keepdims=True)
     return tf.astype(int)
 
 
@@ -33,8 +33,8 @@ class DGCA_M(object):
         noaction = K[1,:]
         divide = K[2,:]
 
-        remove[:res.n_fixed] = 0    # I/O nodes
-        # divide[:res.n_fixed] = 0    # I/O nodes
+        if res.n_io:
+            remove[:res.n_io] = 0    # I/O nodes
 
         keep = np.hstack((np.logical_not(remove), divide)).astype(bool)
         
@@ -58,7 +58,7 @@ class DGCA_M(object):
         S_new = np.vstack((S, S))
         S_new = S_new[keep,:]
 
-        return Reservoir(A_new, S_new, res.n_fixed)
+        return Reservoir(A_new, S_new, res.n_io)
        
     def update_state(self, res: Reservoir):
         """
@@ -66,7 +66,7 @@ class DGCA_M(object):
         """
         G = res.get_neighbourhood()
         C = G @ self.w_state  # N x S
-        return Reservoir(res.A, onehot(C), res.n_fixed)
+        return Reservoir(res.A, onehot(C), res.n_io)
 
     def step(self, res: Reservoir):
         """

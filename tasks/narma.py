@@ -26,7 +26,7 @@ def narma_sequence(t, order=10):
 
     return u, y
 
-def fit_model(u, w_in, w_res, inputgain, feedbackgain, n_fixed=None, y_train=None):
+def fit_model(u, w_in, w_res, inputgain, feedbackgain, n_io=None, y_train=None):
     """
     Fits a reservoir computing model using Bayesian Ridge Regression.
 
@@ -50,9 +50,8 @@ def fit_model(u, w_in, w_res, inputgain, feedbackgain, n_fixed=None, y_train=Non
         else:
             reservoir_state[:,i] = np.tanh(inputgain*w_in.T @ u[:,i] + feedbackgain*w_res.T @ reservoir_state[:,i-1])
     
-    if n_fixed:
-        # keeping only output nodes
-        reservoir_state = reservoir_state[n_fixed//2:n_fixed]
+    if n_io:
+        reservoir_state = reservoir_state[n_io//2:n_io] # keeping only output nodes
     
     # add bias node
     reservoir_state = np.concatenate((reservoir_state, np.ones((1, reservoir_state.shape[1]))),axis=0)

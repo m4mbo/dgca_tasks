@@ -20,6 +20,7 @@ def check_conditions(res: "Reservoir",
                 print('Graph too big (should not happen!)')
             return False
     if 'end2end' in conditions:
+        assert res.n_io
         if not res.end2end() and conditions['end2end']:
             if verbose:
                 print('No I/O path.')
@@ -66,11 +67,11 @@ def dfs_directed(A: np.ndarray, current: int, visited: set) -> bool:
 
 class Reservoir(object):
 
-    def __init__(self, A: np.ndarray, S: np.ndarray, n_fixed: int):
+    def __init__(self, A: np.ndarray, S: np.ndarray, n_io: int=None):
         self.A = A      # N x N
         self.S = S      # N x S
         self.n_states = S.shape[1]
-        self.n_fixed = n_fixed  # number of fixed I/O nodes
+        self.n_io = n_io  # number of fixed I/O nodes
 
     def __str__(self) -> str:
         return f"Graph with {self.size()} nodes and {self.num_edges()} edges"
@@ -117,60 +118,69 @@ class Reservoir(object):
         return np.argmax(self.S, axis=1).tolist()
     
     def pp_io(self, g: gt.Graph, 
-                        pos: gt.VertexPropertyMap = None) -> gt.VertexPropertyMap:
+          pos: gt.VertexPropertyMap = None) -> gt.VertexPropertyMap:
         """
         Handles positioning of nodes, ensuring consistent spacing for input/output nodes
         and dynamic layout for other nodes. Also adjusts the outlines of I/O nodes.
         """
         # determine I/O nodes
-        input_nodes = list(range(self.n_fixed // 2))
-        output_nodes = list(range(self.n_fixed // 2, self.n_fixed))
+        input_nodes = list(range(self.n_io // 2)) if self.n_io > 0 else []
+        output_nodes = list(range(self.n_io // 2, self.n_io)) if self.n_io > 0 else []
         other_nodes = [v for v in g.vertices() if int(v) not in input_nodes + output_nodes]
 
+        # use sfdp_layout for the general layout
         other_pos = gt.sfdp_layout(g, pos=pos)
 
-        # bounding box of other nodes
-        x_min, x_max = float("inf"), float("-inf")
-        y_min, y_max = float("inf"), float("-inf")
-        for v in other_nodes:
-            x, y = other_pos[v]
-            x_min = min(x_min, x)
-            x_max = max(x_max, x)
-            y_min = min(y_min, y)
-            y_max = max(y_max, y)
-
-        # handle case where y_min == y_max, probably only one node
-        if y_min == y_max:
-            y_min -= 1
-            y_max += 1
-
-        # dynamic offsets
-        input_x = x_min - 2.0  # left
-        output_x = x_max + 2.0  # right
-        spacing = max(abs(y_max - y_min) / max(len(input_nodes), len(output_nodes)), 1.0)  # Vertical spacing
-
-        # center nodes vertically around graph middle
-        center_y = (y_min + y_max) / 2.0
-        total_height_input = spacing * (len(input_nodes) - 1)
-        total_height_output = spacing * (len(output_nodes) - 1)
-
+        # initialize vertex properties
         outline_color = g.new_vertex_property("vector<double>")
         pos = g.new_vertex_property("vector<double>")
 
-        # assign positions and outline colors for input/output nodes
-        for i, v in enumerate(input_nodes):
-            pos[g.vertex(v)] = (input_x, center_y - total_height_input / 2 + i * spacing)
-            outline_color[v] = [1, 0, 0, 1]  # red
-        for i, v in enumerate(output_nodes):
-            pos[g.vertex(v)] = (output_x, center_y - total_height_output / 2 + i * spacing)
-            outline_color[v] = [0, 0, 1, 1]  # blue
-        for v in other_nodes:
-            pos[v] = other_pos[v]
-            outline_color[v] = [0, 0, 0, 0]  # transparent
+        if not input_nodes and not output_nodes:
+            # no I/O nodes
+            for v in g.vertices():
+                pos[v] = other_pos[v]
+                outline_color[v] = [0, 0, 0, 0]  # default outline color (transparent)
+        else:
+            # bounding box of other nodes
+            x_min, x_max = float("inf"), float("-inf")
+            y_min, y_max = float("inf"), float("-inf")
+            for v in other_nodes:
+                x, y = other_pos[v]
+                x_min = min(x_min, x)
+                x_max = max(x_max, x)
+                y_min = min(y_min, y)
+                y_max = max(y_max, y)
 
+            # handle case where y_min == y_max, probably only one node
+            if y_min == y_max:
+                y_min -= 1
+                y_max += 1
+
+            # dynamic offsets
+            input_x = x_min - 2.0  # left
+            output_x = x_max + 2.0  # right
+            spacing = max(abs(y_max - y_min) / max(len(input_nodes), len(output_nodes)), 1.0)  # Vertical spacing
+
+            # center nodes vertically around graph middle
+            center_y = (y_min + y_max) / 2.0
+            total_height_input = spacing * (len(input_nodes) - 1)
+            total_height_output = spacing * (len(output_nodes) - 1)
+
+            # assign positions and outline colors for input/output nodes
+            for i, v in enumerate(input_nodes):
+                pos[g.vertex(v)] = (input_x, center_y - total_height_input / 2 + i * spacing)
+                outline_color[v] = [1, 0, 0, 1]  # red
+            for i, v in enumerate(output_nodes):
+                pos[g.vertex(v)] = (output_x, center_y - total_height_output / 2 + i * spacing)
+                outline_color[v] = [0, 0, 1, 1]  # blue
+            for v in other_nodes:
+                pos[v] = other_pos[v]
+                outline_color[v] = [0, 0, 0, 0]  # transparent
+
+        # assign properties to the graph
         g.vp['outline_color'] = outline_color
         g.vp['pos'] = pos
-    
+
 
     def to_gt(self, basic: bool=False, 
               pos: gt.VertexPropertyMap=None) -> gt.Graph:
@@ -197,6 +207,7 @@ class Reservoir(object):
             g.vp['plot_color'] = g.new_vertex_property('vector<double>', state_colors)
             # helper to set IO positions and colors
             self.pp_io(g, pos=pos)
+            
         return g
 
     def draw_gt(self, draw_edge_wgt: bool=False,
@@ -273,8 +284,8 @@ class Reservoir(object):
         """
         Check if there is a path from every input node to at least one output node.
         """
-        input_nodes = range(self.n_fixed // 2)
-        output_nodes = range(self.n_fixed // 2, self.n_fixed)
+        input_nodes = range(self.n_io // 2)
+        output_nodes = range(self.n_io // 2, self.n_io)
         
         for input_node in input_nodes:
             visited = set()
@@ -319,4 +330,4 @@ class Reservoir(object):
             return np.max(component_sizes) / self.size()
 
     def copy(self):
-        return(np.copy(self.A), np.copy(self.S), self.n_fixed)
+        return(np.copy(self.A), np.copy(self.S), self.n_io)

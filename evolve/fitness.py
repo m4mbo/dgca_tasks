@@ -22,7 +22,8 @@ class NarmaFitness(GraphFitness):
                  order: int=10,
                  input_gain: float=0.1,
                  feedback_gain: float=0.95,
-                 verbose: bool = False
+                 verbose: bool = False,
+                 fixed_seq: bool = True
                  ) -> None:
         super().__init__(high_good = False) # because we will be returning an error metric, so low is good.
         self.self_loops = self_loops
@@ -33,16 +34,21 @@ class NarmaFitness(GraphFitness):
         self.feedback_gain = feedback_gain
         self.skip_count = 0
         self.memo = {'fitness':[], 'graph':[], 'model':[]}
-        self.u, self.y = narma_sequence(2000, self.order)
+        self.fixed_seq = fixed_seq
+        if fixed_seq:
+            self.u, self.y = narma_sequence(2000, self.order)
 
     def __call__(self, res: Reservoir) -> float:
         
         checks_ok = check_conditions(res, self.conditions, self.verbose)
         
         if checks_ok:   
+            if not self.fixed_seq:
+                self.u, self.y = narma_sequence(2000, self.order)
             w_in = np.random.randint(-1, 2, (1, res.size()))
-            w_in[:, res.n_fixed//2:] = 0  # masking all nodes except input
-            w_out, state = fit_model(self.u, w_in, res.A, self.input_gain, self.feedback_gain, y_train=self.y, n_fixed=res.n_fixed)
+            if res.n_io:
+                w_in[:, res.n_io//2:] = 0  # masking all nodes except input
+            w_out, state = fit_model(self.u, w_in, res.A, self.input_gain, self.feedback_gain, y_train=self.y, n_io=res.n_io)
             y_fit = w_out.T @ state
             err = NRMSE(self.y, y_fit)     # normalized root mean square error
             if self.verbose:
