@@ -42,7 +42,7 @@ N_IO = 10
 # min_conenctivity
 conditions = {'max_size': 300, 
               'min_size': 100, 
-              'end2end': True}
+              'io_path': True}
 
 fitness_fn = NarmaFitness(conditions=conditions, 
                           verbose=True, 

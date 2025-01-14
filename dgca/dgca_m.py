@@ -43,7 +43,7 @@ class DGCA_M(object):
         none_b, k_bi, k_ba, k_bt = K[7, :], K[8, :], K[9, :], K[10,:]
         none_n, k_ni, k_na, k_nt = K[11,:], K[12,:], K[13,:], K[14,:]
 
-        none_all = np.logical_and(none_f, none_b, none_n)
+        none_all =  np.hstack((np.zeros((res.size())), np.logical_and(none_f, none_b, none_n))).astype(bool)
         keep = np.logical_and(keep, np.logical_not(none_all))
 
         I = np.eye(res.size())
@@ -61,7 +61,7 @@ class DGCA_M(object):
         S_new = np.vstack((S, S))
         S_new = S_new[keep,:]
 
-        return Reservoir(A_new, S_new, res.n_io)
+        return Reservoir(A_new, S_new, res.n_io).no_islands()
        
     def update_state(self, res: Reservoir):
         """

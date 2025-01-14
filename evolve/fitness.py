@@ -48,7 +48,7 @@ class NarmaFitness(GraphFitness):
             w_in = np.random.randint(-1, 2, (1, res.size()))
             if res.n_io:
                 w_in[:, res.n_io//2:] = 0  # masking all nodes except input
-            w_out, state = fit_model(self.u, w_in, res.A, self.input_gain, self.feedback_gain, y_train=self.y, n_io=res.n_io)
+            w_out, state = fit_model(self.u, w_in, res.bipolar_weights().A, self.input_gain, self.feedback_gain, y_train=self.y, n_io=res.n_io)
             y_fit = w_out.T @ state
             err = NRMSE(self.y, y_fit)     # normalized root mean square error
             if self.verbose:

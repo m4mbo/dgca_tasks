@@ -19,9 +19,9 @@ def check_conditions(res: "Reservoir",
             if verbose:
                 print('Graph too big (should not happen!)')
             return False
-    if 'end2end' in conditions:
+    if 'io_path' in conditions:
         assert res.n_io
-        if not res.end2end() and conditions['end2end']:
+        if not res.io_path() and conditions['io_path']:
             if verbose:
                 print('No I/O path.')
             return False
@@ -117,9 +117,77 @@ class Reservoir(object):
         """
         return np.argmax(self.S, axis=1).tolist()
     
-    def pp_io(self, g: gt.Graph, 
-          pos: gt.VertexPropertyMap = None) -> gt.VertexPropertyMap:
+    def to_gt(self, basic: bool=False, 
+              pos: gt.VertexPropertyMap=None) -> gt.Graph:
         """
+        Converts it to a graph-tool graph.
+        Good for visualisation and isomorphism checks.
+        Nodes are coloured by state.
+        Use basic=True if you just want the graph structure
+        """
+        n_nodes = self.size()
+        edge_list = self.to_edgelist()
+        g = gt.Graph(n_nodes)
+        g.add_edge_list(edge_list, eprops=[("wgt", "double")])
+
+        if not basic:
+            # Assign node states as an internal property
+            states = g.new_vertex_property('int', self.states_1d())
+            g.vp['state'] = states
+
+            # Assign colors based on states
+            states_1d = self.states_1d()
+            cmap = plt.get_cmap('viridis', self.n_states + 1)
+            state_colors = cmap(states_1d)
+            g.vp['plot_color'] = g.new_vertex_property('vector<double>', state_colors)
+            # helper to set IO positions and colors
+            self.pp_io(g, pos=pos)
+            
+        return g
+
+    def draw_gt(self, draw_edge_wgt: bool=False,
+                pos: gt.VertexPropertyMap=None,
+                interactive: bool=False,
+                **kwargs) -> gt.VertexPropertyMap:
+        """
+        Draws a the graph using the graph-tool library 
+        Relies on node and edge properties set by to_gt()
+        Returns the node positions, which can then be passed in at the next
+        call so that original nodes don't move to much if you are adding more etc.
+        NB use output=filename to write to a file.
+        """
+        if self.size() == 0:
+            print("Empty graph - can't draw")
+            return None
+
+        g = self.to_gt(pos=pos)
+
+        # edge weights if enabled
+        edge_pen_width = gt.prop_to_size(g.ep.wgt, mi=1, ma=7) if draw_edge_wgt else None
+
+        # draw the graph
+        if interactive:
+            gt.interactive_window(
+                g, pos=g.vp['pos'], vertex_fill_color=g.vp['plot_color'],
+                vertex_color=g.vp['outline_color'],
+                edge_pen_width=edge_pen_width,
+                edge_color=g.ep['edge_color'],
+                **kwargs
+            )
+        else:
+            gt.graph_draw(
+                g, pos=g.vp['pos'], vertex_fill_color=g.vp['plot_color'],
+                vertex_color=g.vp['outline_color'],
+                edge_pen_width=edge_pen_width,
+                edge_color=g.ep['edge_color'],
+                **kwargs
+            )
+
+    def pp_io(self, 
+              g: gt.Graph, 
+              pos: gt.VertexPropertyMap = None) -> gt.VertexPropertyMap:
+        """
+        Pretty prints the input/output nodes.
         Handles positioning of nodes, ensuring consistent spacing for input/output nodes
         and dynamic layout for other nodes. Also adjusts the outlines of I/O nodes.
         """
@@ -169,81 +237,27 @@ class Reservoir(object):
             # assign positions and outline colors for input/output nodes
             for i, v in enumerate(input_nodes):
                 pos[g.vertex(v)] = (input_x, center_y - total_height_input / 2 + i * spacing)
-                outline_color[v] = [1, 0, 0, 1]  # red
+                outline_color[v] = [1, 1, 1, 0.8]  # red
             for i, v in enumerate(output_nodes):
                 pos[g.vertex(v)] = (output_x, center_y - total_height_output / 2 + i * spacing)
-                outline_color[v] = [0, 0, 1, 1]  # blue
+                outline_color[v] = [1, 1, 1, 0.8]  # blue
             for v in other_nodes:
                 pos[v] = other_pos[v]
                 outline_color[v] = [0, 0, 0, 0]  # transparent
 
-        # assign properties to the graph
+        # Assign edge colors based on weights
+        edge_colors = g.new_edge_property("vector<double>")
+        for e in g.edges():
+            weight = g.ep.wgt[e]  # Assuming weights are stored as edge property 'wgt'
+            if weight > 0:
+                edge_colors[e] = [0, 0, 0, 1]  # Black for positive weights
+            else:
+                edge_colors[e] = [1, 0, 0, 1]  # Red for negative weights
+
+        # Assign properties to the graph
         g.vp['outline_color'] = outline_color
         g.vp['pos'] = pos
-
-
-    def to_gt(self, basic: bool=False, 
-              pos: gt.VertexPropertyMap=None) -> gt.Graph:
-        """
-        Converts it to a graph-tool graph.
-        Good for visualisation and isomorphism checks.
-        Nodes are coloured by state.
-        Use basic=True if you just want the graph structure
-        """
-        n_nodes = self.size()
-        edge_list = self.to_edgelist()
-        g = gt.Graph(n_nodes)
-        g.add_edge_list(edge_list, eprops=[("wgt", "double")])
-
-        if not basic:
-            # Assign node states as an internal property
-            states = g.new_vertex_property('int', self.states_1d())
-            g.vp['state'] = states
-
-            # Assign colors based on states
-            states_1d = self.states_1d()
-            cmap = plt.get_cmap('viridis', self.n_states + 1)
-            state_colors = cmap(states_1d)
-            g.vp['plot_color'] = g.new_vertex_property('vector<double>', state_colors)
-            # helper to set IO positions and colors
-            self.pp_io(g, pos=pos)
-            
-        return g
-
-    def draw_gt(self, draw_edge_wgt: bool=False,
-                pos: gt.VertexPropertyMap=None,
-                interactive: bool=False,
-                **kwargs) -> gt.VertexPropertyMap:
-        """
-        Draws a the graph using the graph-tool library 
-        Relies on node and edge properties set by to_gt()
-        Returns the node positions, which can then be passed in at the next
-        call so that original nodes don't move to much if you are adding more etc.
-        NB use output=filename to write to a file.
-        """
-        if self.size() == 0:
-            print("Empty graph - can't draw")
-            return None
-
-        g = self.to_gt(pos=pos)
-
-        # Use edge weights if enabled
-        edge_pen_width = gt.prop_to_size(g.ep.wgt, mi=1, ma=7) if draw_edge_wgt else None
-
-        # Draw the graph
-        if interactive:
-            pos_out = gt.interactive_window(
-                g, pos=g.vp['pos'], vertex_fill_color=g.vp['plot_color'], 
-                vertex_color=g.vp['outline_color'], 
-                edge_pen_width=edge_pen_width, **kwargs
-            )
-        else:
-            pos_out = gt.graph_draw(
-                g, pos=g.vp['pos'], vertex_fill_color=g.vp['plot_color'], 
-                vertex_color=g.vp['outline_color'], 
-                edge_pen_width=edge_pen_width, **kwargs
-            )
-        return pos_out
+        g.ep['edge_color'] = edge_colors
 
     def state_hash(self) -> int:
         """
@@ -280,7 +294,7 @@ class Reservoir(object):
         # is isomorphic if at least one mapping was found
         return False if len(mapping)==0 else True
     
-    def end2end(self) -> bool:
+    def io_path(self) -> bool:
         """
         Check if there is a path from every input node to at least one output node.
         """
@@ -289,12 +303,70 @@ class Reservoir(object):
         
         for input_node in input_nodes:
             visited = set()
-            # DFS from input
+            # dfs from input
             dfs_directed(self.A, input_node, visited)
             if not any(output_node in visited for output_node in output_nodes):
                 return False
-        
         return True
+    
+    def bipolar_weights(self) -> "Reservoir":
+        """
+        Return a copy of the graph with weights converted to bipolar (-1,1) from one-hot encoding.
+        """
+        node_states = np.array(self.states_1d())
+        
+        # row and column indices of edges
+        rows, cols = np.nonzero(self.A)
+
+        # map the states of the source and target nodes 
+        states_from = node_states[rows]
+        states_to = node_states[cols]
+        
+        # vectorize to weights
+        new_weights = POLAR_TABLE[states_from, states_to]
+        
+        A_new = np.zeros_like(self.A)
+        A_new[rows, cols] = new_weights  
+
+        return Reservoir(A_new, self.S, self.n_io)
+    
+    def no_islands(self) -> "Reservoir":
+        """
+        Returns a copy of the graph in which all isolated group of nodes 
+        (relative to the input nodes) have been removed
+        """
+        # no input nodes
+        if self.n_io == 0 or self.size() == 0:
+            return self.copy()
+        
+        # only one big chunk of cc
+        n_cc, _ = connected_components(self.A, directed=False)
+        if n_cc == 1:
+            return self.copy()
+        
+        # efficiently remove nodes with columns and rows empty
+        no_self_loops = self.no_selfloops()
+        non_isolated_mask = np.any(no_self_loops.A, axis=0) | np.any(no_self_loops.A, axis=1)
+
+        # if all nodes are isolated        
+        if not np.any(non_isolated_mask):
+            return self.copy()
+
+        filtered_A = self.A[non_isolated_mask, :][:, non_isolated_mask]
+        filtered_S = self.S[non_isolated_mask]
+
+        input_nodes = range(self.n_io // 2)
+        reachable_mask = np.zeros(filtered_A.shape[0], dtype=bool)
+        
+        # dfs from each input node
+        for input_node in input_nodes:
+            visited = set()
+            dfs_directed(filtered_A, input_node, visited)
+            reachable_mask[list(visited)] = True
+    
+        final_A = filtered_A[reachable_mask][:, reachable_mask]
+        final_S = filtered_S[reachable_mask]
+        return Reservoir(final_A, final_S, self.n_io)
 
     def no_selfloops(self) -> "Reservoir":
         """
@@ -330,4 +402,4 @@ class Reservoir(object):
             return np.max(component_sizes) / self.size()
 
     def copy(self):
-        return(np.copy(self.A), np.copy(self.S), self.n_io)
+        return Reservoir(np.copy(self.A), np.copy(self.S), self.n_io)
