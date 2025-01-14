@@ -39,9 +39,12 @@ class DGCA_M(object):
         keep = np.hstack((np.logical_not(remove), divide)).astype(bool)
         
         # new node wiring
-        _, k_fi, k_fa, k_ft = K[3, :], K[4, :], K[5, :], K[6, :]
-        _, k_bi, k_ba, k_bt = K[7, :], K[8, :], K[9, :], K[10,:]
-        _, k_ni, k_na, k_nt = K[11,:], K[12,:], K[13,:], K[14,:]
+        none_f, k_fi, k_fa, k_ft = K[3, :], K[4, :], K[5, :], K[6, :]
+        none_b, k_bi, k_ba, k_bt = K[7, :], K[8, :], K[9, :], K[10,:]
+        none_n, k_ni, k_na, k_nt = K[11,:], K[12,:], K[13,:], K[14,:]
+
+        none_all = np.logical_and(none_f, none_b, none_n)
+        keep = np.logical_and(keep, np.logical_not(none_all))
 
         I = np.eye(res.size())
 
