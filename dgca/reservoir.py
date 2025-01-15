@@ -53,9 +53,10 @@ def dfs_directed(A: np.ndarray, current: int, visited: set) -> bool:
     """
     Perform a recursive DFS on a directed adjacency matrix
     """
+    if A.shape[0] == 0:
+        return False
     # current node as visited
     visited.add(current) 
-    
     # visit neighbors
     neighbors = np.nonzero(A[current])[0]  # directed neighbors
     for neighbor in neighbors:
@@ -118,7 +119,8 @@ class Reservoir(object):
         return np.argmax(self.S, axis=1).tolist()
     
     def to_gt(self, basic: bool=False, 
-              pos: gt.VertexPropertyMap=None) -> gt.Graph:
+              pos: gt.VertexPropertyMap=None,
+              pp: bool=False) -> gt.Graph:
         """
         Converts it to a graph-tool graph.
         Good for visualisation and isomorphism checks.
@@ -131,18 +133,13 @@ class Reservoir(object):
         g.add_edge_list(edge_list, eprops=[("wgt", "double")])
 
         if not basic:
-            # Assign node states as an internal property
+            # assign node states as an internal property
             states = g.new_vertex_property('int', self.states_1d())
             g.vp['state'] = states
 
-            # Assign colors based on states
-            states_1d = self.states_1d()
-            cmap = plt.get_cmap('viridis', self.n_states + 1)
-            state_colors = cmap(states_1d)
-            g.vp['plot_color'] = g.new_vertex_property('vector<double>', state_colors)
             # helper to set IO positions and colors
-            self.pp_io(g, pos=pos)
-            
+            if pp:
+                self.pp_io(g, pos=pos)            
         return g
 
     def draw_gt(self, draw_edge_wgt: bool=False,
@@ -160,7 +157,7 @@ class Reservoir(object):
             print("Empty graph - can't draw")
             return None
 
-        g = self.to_gt(pos=pos)
+        g = self.to_gt(pos=pos, pp=True)
 
         # edge weights if enabled
         edge_pen_width = gt.prop_to_size(g.ep.wgt, mi=1, ma=7) if draw_edge_wgt else None
@@ -191,6 +188,13 @@ class Reservoir(object):
         Handles positioning of nodes, ensuring consistent spacing for input/output nodes
         and dynamic layout for other nodes. Also adjusts the outlines of I/O nodes.
         """
+
+        # assign colors based on states
+        states_1d = self.states_1d()
+        cmap = plt.get_cmap('viridis', self.n_states + 1)
+        state_colors = cmap(states_1d)
+        g.vp['plot_color'] = g.new_vertex_property('vector<double>', state_colors)
+        
         # determine I/O nodes
         input_nodes = list(range(self.n_io // 2)) if self.n_io > 0 else []
         output_nodes = list(range(self.n_io // 2, self.n_io)) if self.n_io > 0 else []
@@ -343,29 +347,22 @@ class Reservoir(object):
         n_cc, _ = connected_components(self.A, directed=False)
         if n_cc == 1:
             return self.copy()
-        
-        # efficiently remove nodes with columns and rows empty
-        no_self_loops = self.no_selfloops()
-        non_isolated_mask = np.any(no_self_loops.A, axis=0) | np.any(no_self_loops.A, axis=1)
-
-        # if all nodes are isolated        
-        if not np.any(non_isolated_mask):
-            return self.copy()
-
-        filtered_A = self.A[non_isolated_mask, :][:, non_isolated_mask]
-        filtered_S = self.S[non_isolated_mask]
-
+                
         input_nodes = range(self.n_io // 2)
-        reachable_mask = np.zeros(filtered_A.shape[0], dtype=bool)
+        reachable_mask = np.zeros(self.A.shape[0], dtype=bool)
         
         # dfs from each input node
         for input_node in input_nodes:
             visited = set()
-            dfs_directed(filtered_A, input_node, visited)
+            dfs_directed(self.A, input_node, visited)
             reachable_mask[list(visited)] = True
+
+        # io nodes are protected
+        for node in range(self.n_io):
+            reachable_mask[node] = True
     
-        final_A = filtered_A[reachable_mask][:, reachable_mask]
-        final_S = filtered_S[reachable_mask]
+        final_A = self.A[reachable_mask][:, reachable_mask]
+        final_S = self.S[reachable_mask]
         return Reservoir(final_A, final_S, self.n_io)
 
     def no_selfloops(self) -> "Reservoir":

@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 import jsonpickle
-from dgca.dgca_m import DGCA_M
+from dgca.dgca_t import DGCA_T
 from dgca.reservoir import Reservoir
 from evolve.fitness import GraphFitness
 from tasks.narma import *
@@ -95,7 +95,7 @@ class Chromosome:
         newdata = np.random.uniform(size=self.data.shape, low=-1, high=1).astype(np.float32)
         return Chromosome(newdata, self.mutate_rate, self.crossover_rate, self.crossover_style, best_fitness=np.nan)
    
-class EvolvableDGCA(DGCA_M):
+class EvolvableDGCA(DGCA_T):
 
     def set_chromosomes(self, chr1: Chromosome, chr2: Chromosome) -> None:
         self.w_action = chr1.data
@@ -108,13 +108,16 @@ class EvolvableDGCA(DGCA_M):
 
 class ChromosomalMGA:
 
-    def __init__(self, popsize: int,
-                  model: EvolvableDGCA,
-                  seed_graph: Reservoir,
-                  runner: Runner,
-                  fitness_fn: GraphFitness,
-                  mutate_rate: float, cross_rate: float, cross_style: str,
-                  parquet_filename: str | None = None):
+    def __init__(self, 
+                 popsize: int,
+                 model: EvolvableDGCA,
+                 seed_graph: Reservoir,
+                 runner: Runner,
+                 fitness_fn: GraphFitness,
+                 mutate_rate: float, 
+                 cross_rate: float, 
+                 cross_style: str,
+                 parquet_filename: str | None = None):
         self.popsize = popsize
         self.model = model
         self.seed_graph = seed_graph
@@ -141,7 +144,6 @@ class ChromosomalMGA:
             f = self.contest()
             best_fitness = np.max(self.fitness_record) if self.fitness_fn.high_good else np.min(self.fitness_record)
             pbar.set_postfix({'fit':f,'best':best_fitness})
-        return self.records['fitness']
 
     def contest(self) -> float:
         """
@@ -158,9 +160,12 @@ class ChromosomalMGA:
             fitness = self.run_individual(contestant_chromosomes[0]), self.run_individual(contestant_chromosomes[1])
             # if both contestants' fitness are nan, mutate the chromosomes
             if np.all(np.isnan(fitness)):
-                for chr in contestant_chromosomes.flat:
-                    if np.isnan(chr.best_fitness):
-                        chr.mutate(rate=1.0) # do 100% mutation in this case
+                for i, chr in enumerate(contestant_chromosomes.flat):
+                    if np.isnan(fitness[i // self.num_chromosomes]):
+                        if np.isnan(chr.best_fitness):
+                            chr.mutate(rate=1.0)  # do 100% mutation in this case
+                        else:
+                            chr.mutate()  # default mutation rate
         
         win, lose = (0,1) if self.better(*fitness) else (1,0)
         for c in range(self.num_chromosomes):

@@ -10,7 +10,7 @@ def onehot(x: np.ndarray):
     return tf.astype(int)
 
 
-class DGCA_M(object):
+class DGCA_T(object):
     def __init__(self, n_states: int=None):
         if not n_states:
             return
@@ -83,7 +83,7 @@ class DGCA_M(object):
         """
         Returns a copy of this DGCA.
         """
-        out = DGCA_M(None)
+        out = DGCA_T(None)
         out.w_action = np.copy(self.w_action)
         out.w_state = np.copy(self.w_state)
         return out

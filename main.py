@@ -33,7 +33,7 @@ PROJ_DIR = os.path.dirname(os.path.abspath(__file__))
 # various settings
 POPULATION_SIZE = 30
 MUTATE_RATE = 0.02
-CROSS_RATE = 0.5
+CROSS_RATE = 0.6
 CROSS_STYLE = 'cols'
 NUM_TRIALS = 5000
 ORDER = 10
