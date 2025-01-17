@@ -1,4 +1,4 @@
-name: dgca_tasks
+name: DGCAasks
 channels:
   - conda-forge
 dependencies:

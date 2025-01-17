@@ -1,22 +1,22 @@
 #%%
 import os
 import numpy as np
-from dgca.runner import Runner
-from dgca.reservoir import Reservoir
+from grow.runner import Runner
+from grow.reservoir import Reservoir
 from evolve.fitness import NarmaFitness
 from evolve.mga import ChromosomalMGA, EvolvableDGCA
 
-def get_seed(n_io, n_states):
+def get_seed(input_nodes, output_nodes, n_states):
     
-    if n_io:
-        n_nodes = n_io + 1
+    if input_nodes or output_nodes:
+        n_nodes = input_nodes + output_nodes + 1
         A = np.zeros((n_nodes, n_nodes), dtype=int)
         
         # input nodes
-        for i in range(n_io // 2):
+        for i in range(input_nodes):
             A[i, -1] = 1
         # output nodes
-        for i in range(n_io // 2, n_io):
+        for i in range(input_nodes, input_nodes+output_nodes):
             A[-1, i] = 1
 
         S = np.zeros((n_nodes, n_states), dtype=int)  
@@ -37,21 +37,22 @@ CROSS_RATE = 0.6
 CROSS_STYLE = 'cols'
 NUM_TRIALS = 5000
 ORDER = 10
-N_IO = 10
+INPUT = 0
+OUTPUT = 0
 
 # min_conenctivity
 conditions = {'max_size': 300, 
-              'min_size': 100, 
-              'io_path': True}
+              'min_size': 100
+              }
 
 fitness_fn = NarmaFitness(conditions=conditions, 
                           verbose=True, 
                           order=ORDER,
                           fixed_seq=True)
 
-A, S = get_seed(N_IO, 3)
+A, S = get_seed(INPUT, OUTPUT, 3)
 
-reservoir = Reservoir(A=A, S=S, n_io=N_IO)
+reservoir = Reservoir(A=A, S=S, input_nodes=INPUT, output_nodes=OUTPUT)
 model = EvolvableDGCA(n_states=reservoir.n_states)  
 runner = Runner(max_steps=100, max_size=300)
 mga = ChromosomalMGA(popsize=POPULATION_SIZE,

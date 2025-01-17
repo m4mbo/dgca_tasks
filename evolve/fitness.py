@@ -1,6 +1,6 @@
 import numpy as np
-from dgca.reservoir import Reservoir, check_conditions
-from tasks.narma import narma_sequence, fit_model
+from grow.reservoir import Reservoir, check_conditions
+from tasks.series import narma
 
 NRMSE = lambda y,y_fit: np.mean(((y-y_fit)**2)/np.var(y))
 
@@ -36,7 +36,7 @@ class NarmaFitness(GraphFitness):
         self.memo = {'fitness':[], 'graph':[], 'model':[]}
         self.fixed_seq = fixed_seq
         if fixed_seq:
-            self.u, self.y = narma_sequence(2000, self.order)
+            self.u, self.y = narma(2000, self.order)
 
     def __call__(self, res: Reservoir) -> float:
         
@@ -44,11 +44,8 @@ class NarmaFitness(GraphFitness):
         
         if checks_ok:   
             if not self.fixed_seq:
-                self.u, self.y = narma_sequence(2000, self.order)
-            w_in = np.random.randint(-1, 2, (1, res.size()))
-            if res.n_io:
-                w_in[:, res.n_io//2:] = 0  # masking all nodes except input
-            w_out, state = fit_model(self.u, w_in, res.bipolar_weights().A, self.input_gain, self.feedback_gain, y_train=self.y, n_io=res.n_io)
+                self.u, self.y = narma(2000, self.order)
+            w_out, state = res.bipolar().fit(self.u, self.input_gain, self.feedback_gain, y_train=self.y)
             y_fit = w_out.T @ state
             err = NRMSE(self.y, y_fit)     # normalized root mean square error
             if self.verbose:

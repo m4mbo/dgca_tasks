@@ -1,5 +1,5 @@
-from dgca.reservoir import Reservoir
-from dgca.dgca_t import DGCA_T
+from grow.reservoir import Reservoir
+from grow.dgca import DGCA
 
 def rindex(it, li):
     """
@@ -71,7 +71,7 @@ class Runner:
         else:
             return False, None
 
-    def run(self, dgca: DGCA_T, seed: Reservoir) -> Reservoir:
+    def run(self, dgca: DGCA, seed: Reservoir) -> Reservoir:
         """
         Runs for the full number of steps or stops early if the
         graph becomes too big or the system enters an attractor.

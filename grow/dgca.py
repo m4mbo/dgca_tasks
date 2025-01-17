@@ -1,6 +1,6 @@
 import numpy as np
 from util.consts import Q_B, Q_F, Q_M, Q_N
-from dgca.reservoir import Reservoir
+from grow.reservoir import Reservoir
 
 def onehot(x: np.ndarray):
     """
@@ -10,7 +10,7 @@ def onehot(x: np.ndarray):
     return tf.astype(int)
 
 
-class DGCA_T(object):
+class DGCA(object):
     def __init__(self, n_states: int=None):
         if not n_states:
             return
@@ -32,9 +32,8 @@ class DGCA_T(object):
         remove = K[0,:]
         noaction = K[1,:]
         divide = K[2,:]
-
-        if res.n_io:
-            remove[:res.n_io] = 0    # I/O nodes
+        
+        remove[:res.input_nodes+res.output_nodes] = 0    # I/O nodes
 
         keep = np.hstack((np.logical_not(remove), divide)).astype(bool)
         
@@ -61,7 +60,7 @@ class DGCA_T(object):
         S_new = np.vstack((S, S))
         S_new = S_new[keep,:]
 
-        return Reservoir(A_new, S_new, res.n_io).no_islands()
+        return Reservoir(A_new, S_new, res.input_nodes, res.output_nodes).no_islands()
        
     def update_state(self, res: Reservoir):
         """
@@ -69,7 +68,7 @@ class DGCA_T(object):
         """
         G = res.get_neighbourhood()
         C = G @ self.w_state  # N x S
-        return Reservoir(res.A, onehot(C), res.n_io)
+        return Reservoir(res.A, onehot(C), res.input_nodes, res.output_nodes)
 
     def step(self, res: Reservoir):
         """
@@ -83,7 +82,7 @@ class DGCA_T(object):
         """
         Returns a copy of this DGCA.
         """
-        out = DGCA_T(None)
+        out = DGCA(None)
         out.w_action = np.copy(self.w_action)
         out.w_state = np.copy(self.w_state)
         return out

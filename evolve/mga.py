@@ -1,12 +1,12 @@
 from tqdm import tqdm
 import numpy as np
 import jsonpickle
-from dgca.dgca_t import DGCA_T
-from dgca.reservoir import Reservoir
+from grow.dgca import DGCA
+from grow.reservoir import Reservoir
 from evolve.fitness import GraphFitness
-from tasks.narma import *
-from dgca.runner import Runner
+from grow.runner import Runner
 import pandas as pd
+
 
 class Chromosome:
     """
@@ -95,7 +95,7 @@ class Chromosome:
         newdata = np.random.uniform(size=self.data.shape, low=-1, high=1).astype(np.float32)
         return Chromosome(newdata, self.mutate_rate, self.crossover_rate, self.crossover_style, best_fitness=np.nan)
    
-class EvolvableDGCA(DGCA_T):
+class EvolvableDGCA(DGCA):
 
     def set_chromosomes(self, chr1: Chromosome, chr2: Chromosome) -> None:
         self.w_action = chr1.data
