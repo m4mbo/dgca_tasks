@@ -67,10 +67,12 @@ def dfs_directed(A: np.ndarray, current: int, visited: set) -> bool:
 
 class Reservoir(GraphDef):
 
-    def __init__(self, A: np.ndarray, S: np.ndarray, input_nodes: int=0, output_nodes: int=0):
+    def __init__(self, A: np.ndarray, S: np.ndarray, input_nodes: int=0, output_nodes: int=0, input_gain=0.1, feedback_gain=0.95):   
         super().__init__(A, S)
         self.input_nodes = input_nodes  # number of fixed I/O nodes
         self.output_nodes = output_nodes 
+        self.input_gain = input_gain
+        self.feedback_gain = feedback_gain
 
     def pp(self, 
            g: gt.Graph, 
@@ -221,7 +223,7 @@ class Reservoir(GraphDef):
         final_S = self.S[reachable_mask]
         return Reservoir(final_A, final_S, self.input_nodes, self.output_nodes)
 
-    def fit(self, u, inputgain, feedbackgain, y_train=None):
+    def fit(self, u, y_train=None):
         """
         Fits a reservoir computing model using Bayesian Ridge Regression.
 
@@ -236,17 +238,17 @@ class Reservoir(GraphDef):
         - reservoir_state (reservoir_dim + 1, time_steps): State matrix.
         """
         w_in = np.random.randint(-1, 2, (1, self.size()))
+        
         if self.input_nodes:
             w_in[:, self.input_nodes:] = 0
 
         reservoir_state = np.zeros((self.size(), u.shape[1]))
-        w_res = self.A
-
+      
         for i in range(u.shape[1]):
             if i == 0:
-                reservoir_state[:,i] = np.tanh(inputgain*w_in.T @ u[:,i])
+                reservoir_state[:,i] = np.tanh(self.input_gain*w_in.T @ u[:,i])
             else:
-                reservoir_state[:,i] = np.tanh(inputgain*w_in.T @ u[:,i] + feedbackgain*w_res.T @ reservoir_state[:,i-1])
+                reservoir_state[:,i] = np.tanh(self.input_gain*w_in.T @ u[:,i] + self.feedback_gain*self.A.T @ reservoir_state[:,i-1])
         
         if self.output_nodes:
             reservoir_state = reservoir_state[self.input_nodes:self.input_nodes+self.output_nodes] # keeping only output nodes

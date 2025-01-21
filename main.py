@@ -3,8 +3,9 @@ import os
 import numpy as np
 from grow.runner import Runner
 from grow.reservoir import Reservoir
-from evolve.fitness import NarmaFitness
+from evolve.fitness import TaskFitness
 from evolve.mga import ChromosomalMGA, EvolvableDGCA
+from tasks.series import *
 
 def get_seed(input_nodes, output_nodes, n_states):
     
@@ -45,10 +46,11 @@ conditions = {'max_size': 300,
               'min_size': 100
               }
 
-fitness_fn = NarmaFitness(conditions=conditions, 
-                          verbose=True, 
-                          order=ORDER,
-                          fixed_seq=True)
+fitness_fn = TaskFitness(series=narma,
+                         conditions=conditions, 
+                         verbose=True, 
+                         order=ORDER,
+                         fixed_seq=True)
 
 A, S = get_seed(INPUT, OUTPUT, 3)
 
