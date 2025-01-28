@@ -3,7 +3,7 @@ import numpy as np
 import jsonpickle
 from grow.dgca import DGCA
 from grow.reservoir import Reservoir
-from evolve.fitness import GraphFitness
+from evolve.fitness import ReservoirFitness
 from grow.runner import Runner
 import pandas as pd
 
@@ -113,7 +113,7 @@ class ChromosomalMGA:
                  model: EvolvableDGCA,
                  seed_graph: Reservoir,
                  runner: Runner,
-                 fitness_fn: GraphFitness,
+                 fitness_fn: ReservoirFitness,
                  mutate_rate: float, 
                  cross_rate: float, 
                  cross_style: str,
@@ -185,7 +185,7 @@ class ChromosomalMGA:
         new_row = {
             "fitness": fitness,
             "model": jsonpickle.encode(self.model),
-            "final_graph": jsonpickle.encode(reservoir),
+            "final_reservoir": jsonpickle.encode(reservoir),
             "skip_count": self.fitness_fn.skip_count
         }
         new_data = pd.DataFrame([new_row])
@@ -202,13 +202,13 @@ class ChromosomalMGA:
         """
         self.model.set_chromosomes(*chromosomes)
         self.runner.reset()
-        final_graph = self.runner.run(self.model, self.seed_graph)
-        fitness = self.fitness_fn(final_graph)
+        final_res = self.runner.run(self.model, self.seed_graph)
+        fitness = self.fitness_fn(final_res)
         # update chromosomes' best_fitness score
         for chr in chromosomes:
             if self.better(fitness, chr.best_fitness):
                 chr.best_fitness = fitness
         if not(np.isnan(fitness)) and (self.parquet_filename is not None):
             self.fitness_record.append(fitness)
-            self.log_fitness(fitness, final_graph)
+            self.log_fitness(fitness, final_res)
         return fitness

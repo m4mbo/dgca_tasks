@@ -105,7 +105,7 @@ class GraphDef(object):
         if self.size() == 0:
             print("Empty graph - can't draw")
             return None
-
+        
         g = self.to_gt(pos=pos, pp=True)
 
         # edge weights if enabled

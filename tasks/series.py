@@ -1,10 +1,13 @@
 import numpy as np
+from util.consts import T
 
-def narma(t, order=10):
+def narma(order=10, t=None, discard=20):
     """
     Creates NARMA-X sequence for t timesteps, where X is the order of the system.
     """
-    x = order - 1
+    if not t:
+        t = T+discard
+    x = order-1
     # input
     u = np.random.uniform(0, 0.5, t).astype(np.float64)
     # NARMA sequence
@@ -19,8 +22,8 @@ def narma(t, order=10):
         y[i+1] = np.clip(y[i+1], -1e10, 1e10)
 
     # discard transient effects from first 20 steps
-    u = u[np.newaxis, 20:]
-    y = y[np.newaxis, 20:]
+    u = u[np.newaxis, discard:]
+    y = y[np.newaxis, discard:]
 
     return u, y
 

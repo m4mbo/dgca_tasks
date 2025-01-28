@@ -3,7 +3,7 @@ import os
 import numpy as np
 from grow.runner import Runner
 from grow.reservoir import Reservoir
-from evolve.fitness import TaskFitness
+from evolve.fitness import TaskFitness, MetricFitness
 from evolve.mga import ChromosomalMGA, EvolvableDGCA
 from tasks.series import *
 
@@ -38,23 +38,26 @@ CROSS_RATE = 0.6
 CROSS_STYLE = 'cols'
 NUM_TRIALS = 5000
 ORDER = 10
-INPUT = 0
-OUTPUT = 0
+INPUT_NODES = 0
+OUTPUT_NODES = 0
 
 # min_conenctivity
-conditions = {'max_size': 300, 
-              'min_size': 100
-              }
+conditions = {'max_size': 100, 
+              'min_size': 50}
 
 fitness_fn = TaskFitness(series=narma,
                          conditions=conditions, 
                          verbose=True, 
                          order=ORDER,
-                         fixed_seq=True)
+                         fixed_series=True)
 
-A, S = get_seed(INPUT, OUTPUT, 3)
+# fitness_fn = MetricFitness(conditions=conditions, 
+#                            verbose=True, 
+#                            metric="GM")
 
-reservoir = Reservoir(A=A, S=S, input_nodes=INPUT, output_nodes=OUTPUT)
+A, S = get_seed(INPUT_NODES, OUTPUT_NODES, 3)
+
+reservoir = Reservoir(A=A, S=S, input_nodes=INPUT_NODES, output_nodes=OUTPUT_NODES)
 model = EvolvableDGCA(n_states=reservoir.n_states)  
 runner = Runner(max_steps=100, max_size=300)
 mga = ChromosomalMGA(popsize=POPULATION_SIZE,
@@ -65,9 +68,7 @@ mga = ChromosomalMGA(popsize=POPULATION_SIZE,
                      mutate_rate=MUTATE_RATE,
                      cross_rate=CROSS_RATE,
                      cross_style=CROSS_STYLE,
-                     parquet_filename="fitness.parquet"
-                     )
+                     parquet_filename="fitness.parquet")
 #%%
 mga.run(steps=NUM_TRIALS)
-
 # %%
