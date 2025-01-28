@@ -1,1 +1,1 @@
-# DGCA-M for Task-oriented ESN growth
+# DGCAs for Task-oriented ESN growth
