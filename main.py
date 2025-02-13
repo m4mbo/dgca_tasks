@@ -1,74 +1,48 @@
-#%%
 import os
-import numpy as np
+import sys
 from grow.runner import Runner
-from grow.reservoir import Reservoir
+from grow.reservoir import get_seed
 from evolve.fitness import TaskFitness, MetricFitness
 from evolve.mga import ChromosomalMGA, EvolvableDGCA
-from tasks.series import *
+from prop.tasks import narma, santa_fe
+from util.parser import parse_arguments
+from util.consts import N_STATES
 
-def get_seed(input_nodes, output_nodes, n_states):
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+    project_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
+
+    conditions = {'max_size': 100, 
+                  'min_size': 50}
     
-    if input_nodes or output_nodes:
-        n_nodes = input_nodes + output_nodes + 1
-        A = np.zeros((n_nodes, n_nodes), dtype=int)
+    if args.series:
+        print(f"Running {args.series} experiment...")
+        fitness_fn = TaskFitness(series=narma if args.series == "narma" else santa_fe,
+                                 conditions=conditions, 
+                                 verbose=args.verbose, 
+                                 order=args.order,
+                                 fixed_series=True)
+    elif args.metric:
+        print(f"Running {args.metric} experiment...")
+        fitness_fn = MetricFitness(metric=args.metric,
+                                   conditions=conditions, 
+                                   verbose=args.verbose)
         
-        # input nodes
-        for i in range(input_nodes):
-            A[i, -1] = 1
-        # output nodes
-        for i in range(input_nodes, input_nodes+output_nodes):
-            A[-1, i] = 1
 
-        S = np.zeros((n_nodes, n_states), dtype=int)  
-        S[:, 0] = 1
-    else:
-        A = np.array([[0]])
-        S = np.zeros((1, n_states), dtype=int)  
-        S[0, 0] = 1
-    return A, S
+    reservoir = get_seed(args.input_nodes, args.output_nodes, N_STATES)
 
-#%%
-PROJ_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# various settings
-POPULATION_SIZE = 30
-MUTATE_RATE = 0.02
-CROSS_RATE = 0.6
-CROSS_STYLE = 'cols'
-NUM_TRIALS = 5000
-ORDER = 10
-INPUT_NODES = 0
-OUTPUT_NODES = 0
-
-# min_conenctivity
-conditions = {'max_size': 100, 
-              'min_size': 50}
-
-fitness_fn = TaskFitness(series=narma,
-                         conditions=conditions, 
-                         verbose=True, 
-                         order=ORDER,
-                         fixed_series=True)
-
-# fitness_fn = MetricFitness(conditions=conditions, 
-#                            verbose=True, 
-#                            metric="GM")
-
-A, S = get_seed(INPUT_NODES, OUTPUT_NODES, 3)
-
-reservoir = Reservoir(A=A, S=S, input_nodes=INPUT_NODES, output_nodes=OUTPUT_NODES)
-model = EvolvableDGCA(n_states=reservoir.n_states)  
-runner = Runner(max_steps=100, max_size=300)
-mga = ChromosomalMGA(popsize=POPULATION_SIZE,
-                     seed_graph=reservoir,
-                     model=model,
-                     runner=runner,
-                     fitness_fn=fitness_fn,
-                     mutate_rate=MUTATE_RATE,
-                     cross_rate=CROSS_RATE,
-                     cross_style=CROSS_STYLE,
-                     parquet_filename="fitness.parquet")
-#%%
-mga.run(steps=NUM_TRIALS)
-# %%
+    model = EvolvableDGCA(n_states=reservoir.n_states)  
+    runner = Runner(max_steps=100, max_size=300)
+    mga = ChromosomalMGA(popsize=args.pop_size,
+                        seed_graph=reservoir,
+                        model=model,
+                        runner=runner,
+                        fitness_fn=fitness_fn,
+                        mutate_rate=args.mutate_rate,
+                        cross_rate=args.cross_rate,
+                        cross_style=args.cross_style,
+                        parquet_filename=args.output_file)
+    
+    mga.run(steps=args.n_trials)

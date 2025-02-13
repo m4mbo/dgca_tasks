@@ -150,15 +150,13 @@ class GraphDef(object):
 
             # helper to set IO positions and colors
             if pp:
-                self.pp(g, pos=pos)            
+                self._pp(g, pos=pos)            
         return g
     
-    def pp(self, g: gt.Graph, 
+    def _pp(self, g: gt.Graph, 
            pos: gt.VertexPropertyMap = None) -> gt.VertexPropertyMap:
         """
-        Pretty prints the input/output nodes.
-        Handles positioning of nodes, ensuring consistent spacing for input/output nodes
-        and dynamic layout for other nodes. Also adjusts the outlines of I/O nodes.
+        Pretty prints the graph.
         """
         # assign colors based on states
         states_1d = self.states_1d()

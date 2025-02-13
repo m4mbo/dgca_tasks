@@ -6,7 +6,8 @@ from scipy.sparse.csgraph import connected_components
 from sklearn.linear_model import BayesianRidge
 import matplotlib.pyplot as plt
 
-def check_conditions(res: "Reservoir",
+
+def check_conditions(res: 'Reservoir',
                      conditions: dict, 
                      verbose: bool=False) -> bool:
     size = res.size()
@@ -48,6 +49,7 @@ def check_conditions(res: "Reservoir",
         print(f'Reservoir OK: size={size}, conn={conn*100:.2f}%, frag={frag:.2f}')
     return True
 
+
 def dfs_directed(A: np.ndarray, current: int, visited: set) -> bool:
     """
     Perform a recursive DFS on a directed adjacency matrix
@@ -63,6 +65,30 @@ def dfs_directed(A: np.ndarray, current: int, visited: set) -> bool:
             if dfs_directed(A, neighbor, visited):
                 return True
     return False
+
+
+def get_seed(input_nodes: int, 
+             output_nodes: int, 
+             n_states: int) -> 'Reservoir':
+    
+    if input_nodes or output_nodes:
+        n_nodes = input_nodes + output_nodes + 1
+        A = np.zeros((n_nodes, n_nodes), dtype=int)
+        
+        # input nodes
+        for i in range(input_nodes):
+            A[i, -1] = 1
+        # output nodes
+        for i in range(input_nodes, input_nodes+output_nodes):
+            A[-1, i] = 1
+
+        S = np.zeros((n_nodes, n_states), dtype=int)  
+        S[:, 0] = 1
+    else:
+        A = np.array([[0]])
+        S = np.zeros((1, n_states), dtype=int)  
+        S[0, 0] = 1
+    return Reservoir(A, S, input_nodes=input_nodes, output_nodes=output_nodes)
 
 
 class Reservoir(GraphDef):
@@ -86,7 +112,7 @@ class Reservoir(GraphDef):
         self.washout = washout
         self.reset()
 
-    def pp(self, 
+    def _pp(self, 
            g: gt.Graph, 
            pos: gt.VertexPropertyMap = None) -> gt.VertexPropertyMap:
         """
@@ -183,7 +209,7 @@ class Reservoir(GraphDef):
                 return False
         return True
     
-    def bipolar(self) -> "Reservoir":
+    def bipolar(self) -> 'Reservoir':
         """
         Return a copy of the graph with weights converted to bipolar (-1,1) from one-hot encoding.
         """
@@ -202,7 +228,7 @@ class Reservoir(GraphDef):
         A_new[rows, cols] = new_weights  
         return Reservoir(A_new, self.S, self.input_nodes, self.output_nodes)
     
-    def no_islands(self) -> "Reservoir":
+    def no_islands(self) -> 'Reservoir':
         """
         Returns a copy of the graph in which all isolated group of nodes 
         (relative to the input nodes) have been removed
@@ -250,7 +276,7 @@ class Reservoir(GraphDef):
         if self.reservoir_state.shape[1] != input.shape[1]:
             self.reset(input.shape[1])
 
-        state = self.run_(input, bias=True)
+        state = self._run(input, bias=True)
 
         # tikhonov regularization to fit and generalize on unseen data
         regression = BayesianRidge(max_iter=3000, tol=1e-6, verbose=False, fit_intercept=False)
@@ -270,9 +296,9 @@ class Reservoir(GraphDef):
         # check if input sequence length matches previous length
         if self.reservoir_state.shape[1] != input.shape[1]:
             self.reset(input.shape[1])
-        return self.w_out @ self.run_(input)
+        return self.w_out @ self._run(input)
     
-    def run_(self, input, bias=False):
+    def _run(self, input, bias=False):
         """
         Helper function for run. Runs the reservoir without the output layer.
         """
@@ -311,7 +337,7 @@ class Reservoir(GraphDef):
         else:
             self.w_out = np.ones((1, self.size()))
 
-    def no_selfloops(self) -> "Reservoir":
+    def no_selfloops(self) -> 'Reservoir':
         """
         Returns a copy of the graph in which all self-loops have been removed
         """
@@ -322,6 +348,5 @@ class Reservoir(GraphDef):
     
     def copy(self):
         return Reservoir(np.copy(self.A), np.copy(self.S), self.input_nodes, self.output_nodes)
-
 
     

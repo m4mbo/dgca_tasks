@@ -1,7 +1,7 @@
 import numpy as np
 from grow.reservoir import Reservoir, check_conditions
 from tasks.series import *
-from tasks.metrics import kernel_rank, generalization_measure
+from tasks.metrics import kernel_rank, generalization_measure, linear_memory_capacity
 
 NRMSE = lambda y,y_fit: np.mean(((y-y_fit)**2)/np.var(y))
 
@@ -19,23 +19,34 @@ class TaskFitness(ReservoirFitness):
 
     def __init__(self,
                  series: callable,
-                 conditions: dict = dict(),
-                 self_loops: bool= False,
-                 order: int=10,
-                 verbose: bool = False,
-                 fixed_series: bool = True
+                 conditions: dict=dict(),
+                 self_loops: bool=True,
+                 verbose: bool=False,
+                 order: int=None,
+                 fixed_series: bool=True
                  ) -> None:
         super().__init__(high_good = False) # because we will be returning an error metric, so low is good.
         self.self_loops = self_loops
         self.conditions = conditions
         self.verbose = verbose
-        self.order = order
         self.skip_count = 0
         self.series = series
+        self.order = order
         self.memo = {'fitness':[], 'graph':[], 'model':[]}
         self.fixed_series = fixed_series
-        if fixed_series:
-            self.input, self.target = series(order=self.order)
+        self.input, self.target = self._generate_series()
+
+    def _generate_series(self):
+        """
+        Helper method to generate the input and target series based on
+        the fixed_series and order.
+        """
+        if self.fixed_series:
+            if self.order is not None:
+                return self.series(order=self.order)
+            else:
+                return self.series()
+        return None, None
 
     def __call__(self, res: Reservoir) -> float:
         
@@ -46,8 +57,7 @@ class TaskFitness(ReservoirFitness):
             res_ = res.no_selfloops()
         
         if checks_ok:   
-            if not self.fixed_series:
-                self.input, self.target = self.series(order=self.order)
+            self.input, self.target = self._generate_series()
             res_.reset()
             predictions = res_.bipolar().train(self.input, target=self.target)
             err = np.min((NRMSE(self.target[:, res.washout:], predictions), 1))     # normalized root mean square error
@@ -62,26 +72,31 @@ class TaskFitness(ReservoirFitness):
 class MetricFitness(ReservoirFitness):
 
     def __init__(self,
-                 conditions: dict = dict(),
-                 self_loops: bool= False,
-                 verbose: bool = False,
-                 metric: str = 'KR') -> None:
+                 metric: str,
+                 conditions: dict = None,
+                 self_loops: bool = True,
+                 verbose: bool = False
+                 ) -> None:
+        super().__init__(high_good=True)  
         
-        super().__init__(high_good=True) # because we will be returning an error metric, so low is good.
+        self.metric = metric
+        self.conditions = conditions or {} 
         self.self_loops = self_loops
-        self.conditions = conditions
         self.verbose = verbose
         self.skip_count = 0
-        self.memo = {'fitness':[], 'graph':[], 'model':[]}
-        self.metric = metric
+        self.memo = {'fitness': [], 'graph': [], 'model': []}
+    
+    def _compute_metric(self, res):
+        if self.metric == "KR":  
+            size = res.size()
+            return (1 - kernel_rank(res) / size)
+        if self.metric == "GM":
+            return generalization_measure(res)
+        if self.metric == "LMC":
+            return linear_memory_capacity(res)
+        if self.metric == "combined":
+            return (1 - kernel_rank(res) / size) + generalization_measure(res)
 
-        if metric == 'KR':
-            self.metric_fn = kernel_rank
-        elif metric == 'GM':
-            self.metric_fn = generalization_measure
-        else:
-            raise ValueError('metric must be either "KR" or "GM"')
-        
     def __call__(self, res: Reservoir) -> float:
         
         checks_ok = check_conditions(res, self.conditions, self.verbose)
@@ -91,10 +106,7 @@ class MetricFitness(ReservoirFitness):
             res_ = res.no_selfloops()
 
         if checks_ok:   
-            err = self.metric_fn(res_.bipolar())
-            if self.metric == "KR":  
-                size = res_.size()
-                err = (1 - err / size) * (np.log(size) + 1)
+            err = self._compute_metric(res_)
             if self.verbose:
                 print(f'Skipped {self.skip_count}')
             self.skip_count = 0

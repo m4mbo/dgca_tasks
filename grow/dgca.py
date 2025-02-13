@@ -2,12 +2,49 @@ import numpy as np
 from util.consts import Q_B, Q_F, Q_M, Q_N
 from grow.reservoir import Reservoir
 
+
 def onehot(x: np.ndarray):
     """
     Helper function to on hot encode an array x.
     """
     tf = x == np.max(x, axis=1, keepdims=True)
     return tf.astype(int)
+
+
+class MLP:
+    def __init__(self, layer_sizes):
+        self.layer_sizes = layer_sizes
+        self.weights = []
+        self.biases = []
+        
+        # weights and biases for each layer
+        for i in range(len(layer_sizes) - 1):
+            self.weights.append(np.random.uniform(-1, 1, (layer_sizes[i], layer_sizes[i + 1])))
+            self.biases.append(np.random.uniform(-1, 1, (layer_sizes[i + 1],)))
+
+    def forward(self, x):
+        """
+        Perform a forward pass through the MLP with sigmoid activation.
+        """
+        for i in range(len(self.weights) - 1):
+            x = 1 / (1 + np.exp(-np.dot(x, self.weights[i]) - self.biases[i]))  
+        output = 1 / (1 + np.exp(-np.dot(x, self.weights[-1]) - self.biases[-1]))  # final layer with sigmoid
+        return output
+
+    def get_parameters(self):
+        """
+        Get the parameters of the MLP.
+        """
+        return self.weights, self.biases
+
+    def set_parameters(self, weights, biases):
+        """
+        Set the parameters of the MLP.
+        """
+        assert len(weights) == len(self.weights), "Mismatch in number of weight matrices."
+        assert len(biases) == len(self.biases), "Mismatch in number of bias vectors."
+        self.weights = weights
+        self.biases = biases
 
 
 class DGCA(object):
@@ -19,7 +56,7 @@ class DGCA(object):
     
     def update_action(self, res: Reservoir):
         """
-        First SLP.
+        First MLP.
         """
         C = res.get_neighbourhood()
         D = C @ self.w_action   # N x 15
@@ -64,7 +101,7 @@ class DGCA(object):
        
     def update_state(self, res: Reservoir):
         """
-        Second SLP.
+        Second MLP.
         """
         G = res.get_neighbourhood()
         C = G @ self.w_state  # N x S
@@ -72,7 +109,7 @@ class DGCA(object):
 
     def step(self, res: Reservoir):
         """
-        Pass through both SLPs. 
+        Pass through both MLPs. 
         """
         pre = self.update_action(res)
         post = self.update_state(pre)

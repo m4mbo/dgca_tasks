@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.special import expit
 
+N_STATES = 3
+
 Q_M = [[1,0], 
        [0,0]]
 
