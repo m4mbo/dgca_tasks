@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Define variables
 POP_SIZE=30
 MUTATE_RATE=0.02
 CROSS_RATE=0.5
@@ -11,13 +10,10 @@ OUTPUT_NODES=0
 ORDER=10
 TASK="--task narma"
 # METRIC="--metric KR"
-OUTPUT_FILE="fitness.parquet"
 EXPERIMENT_ID=0
 
-# Number of parallel jobs
 NUM_JOBS=150
 
-# Generate and run commands in parallel
 seq 1 $NUM_JOBS | parallel -j $NUM_JOBS python3 ../../main.py \
   --pop_size $POP_SIZE \
   --mutate_rate $MUTATE_RATE \
@@ -29,5 +25,5 @@ seq 1 $NUM_JOBS | parallel -j $NUM_JOBS python3 ../../main.py \
   --order $ORDER \
   $TASK \
   $METRIC \
-  --output_file $OUTPUT_FILE \
+  --output_file '{= $_ = ($ENV{EXPERIMENT_ID} + $_) . ".parquet" =}' \
   --exp_id '{= $_ = $ENV{EXPERIMENT_ID} + $_ =}'
