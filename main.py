@@ -4,7 +4,7 @@ from grow.runner import Runner
 from grow.reservoir import get_seed
 from evolve.fitness import TaskFitness, MetricFitness
 from evolve.mga import ChromosomalMGA, EvolvableDGCA
-from prop.tasks import narma, santa_fe
+from properties.tasks import narmax, santa_fe
 from util.parser import parse_arguments
 from util.consts import N_STATES
 
@@ -15,11 +15,11 @@ if __name__ == "__main__":
     project_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
 
     conditions = {'max_size': 100, 
-                  'min_size': 50}
+                  'min_size': 1}
     
-    if args.series:
-        print(f"Running {args.series} experiment...")
-        fitness_fn = TaskFitness(series=narma if args.series == "narma" else santa_fe,
+    if args.task:
+        print(f"Running {args.task} experiment...")
+        fitness_fn = TaskFitness(series=narmax if args.task == "narma" else santa_fe,
                                  conditions=conditions, 
                                  verbose=args.verbose, 
                                  order=args.order,
@@ -42,6 +42,7 @@ if __name__ == "__main__":
                         fitness_fn=fitness_fn,
                         mutate_rate=args.mutate_rate,
                         cross_rate=args.cross_rate,
+                        exp_id=args.exp_id,
                         cross_style=args.cross_style,
                         parquet_filename=args.output_file)
     

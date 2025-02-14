@@ -1,5 +1,5 @@
 import numpy as np
-from util.consts import Q_B, Q_F, Q_M, Q_N
+from util.consts import Q_B, Q_F, Q_M, Q_N, stable_sigmoid
 from grow.reservoir import Reservoir
 
 
@@ -24,11 +24,11 @@ class MLP:
 
     def forward(self, x):
         """
-        Perform a forward pass through the MLP with sigmoid activation.
+        Perform a forward pass through the MLP with stable sigmoid activation.
         """
         for i in range(len(self.weights) - 1):
-            x = 1 / (1 + np.exp(-np.dot(x, self.weights[i]) - self.biases[i]))  
-        output = 1 / (1 + np.exp(-np.dot(x, self.weights[-1]) - self.biases[-1]))  # final layer with sigmoid
+            x = stable_sigmoid(np.dot(x, self.weights[i]) + self.biases[i])
+        output = np.dot(x, self.weights[-1]) + self.biases[-1]
         return output
 
     def get_parameters(self):
@@ -48,18 +48,18 @@ class MLP:
 
 
 class DGCA(object):
-    def __init__(self, n_states: int=None):
+    def __init__(self, hidden_size=64, n_states: int=None):
         if not n_states:
             return
-        self.w_action = np.random.uniform(low=-1.0, high=1.0, size=(3*n_states + 1, 15))
-        self.w_state = np.random.uniform(low=-1.0, high=1.0, size=(3*n_states + 1, n_states))
+        self.action_mlp = MLP(layer_sizes=[3 * n_states, hidden_size, 15])  # 2 layers
+        self.state_mlp = MLP(layer_sizes=[3 * n_states, hidden_size, n_states])  # 2 layers
     
     def update_action(self, res: Reservoir):
         """
         First MLP.
         """
-        C = res.get_neighbourhood()
-        D = C @ self.w_action   # N x 15
+        G = res.get_neighbourhood()
+        D = self.action_mlp.forward(G)   # N x 15
 
         # one hot in sections
         K = np.hstack((onehot(D[:,0:3]), onehot(D[:,3:7]), onehot(D[:,7:11]), onehot(D[:,11:15])))
@@ -104,8 +104,8 @@ class DGCA(object):
         Second MLP.
         """
         G = res.get_neighbourhood()
-        C = G @ self.w_state  # N x S
-        return Reservoir(res.A, onehot(C), res.input_nodes, res.output_nodes)
+        D = self.state_mlp.forward(G)  # N x S
+        return Reservoir(res.A, onehot(D), res.input_nodes, res.output_nodes)
 
     def step(self, res: Reservoir):
         """

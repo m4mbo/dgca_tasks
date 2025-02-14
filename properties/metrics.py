@@ -10,6 +10,7 @@ def shannon_entropy(data: list):
     entropy = -np.sum(probs * np.log2(probs))
     return entropy
 
+
 def kernel_rank(res: Reservoir, 
                 input: np.ndarray=None, 
                 state: np.ndarray=None, 
@@ -21,6 +22,7 @@ def kernel_rank(res: Reservoir,
         res.reset()
         _ = res.run(input)
     return np.linalg.matrix_rank(res.reservoir_state[:, res.washout:])
+
 
 def generalization_measure(res: Reservoir, 
                            input: np.ndarray=None, 
@@ -59,6 +61,7 @@ def generalization_measure(res: Reservoir,
     return shannon_entropy([exponential_discretization(i, num_bins, np.max(diff_in)) for i in diff_in]) / \
         shannon_entropy([exponential_discretization(o, num_bins, np.max(diff_out)) for o in diff_out])
 
+
 def exponential_discretization(x: float, num_bins: int, upper_bound: float):
     """
     Helper function for generalization_measure.
@@ -66,6 +69,7 @@ def exponential_discretization(x: float, num_bins: int, upper_bound: float):
     """  
     return np.max((1, np.ceil(np.log2(x/upper_bound) + num_bins)))
             
+
 def sample_history(i: int, 
                    input: np.ndarray,
                    num_timesteps: int, 
@@ -81,6 +85,7 @@ def sample_history(i: int,
         if h < epsilon:
             choices = np.append(choices, j)
     return int(np.random.choice(choices))
+
 
 def get_metrics(res: Reservoir, 
                 num_timesteps: int=T, 

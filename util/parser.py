@@ -17,11 +17,13 @@ def parse_arguments():
     
     # task settings
     parser.add_argument('--order', type=int, default=10, help='Order for NARMA sequence.')
-    mutex.add_argument('--series', type=str, help='Benchmark task name.')
-    mutex.add_argument('--metric', type=str, help='Metric type (options: KR, GM, LMC or combined).')
+    mutex.add_argument('--task', type=str, default=None, help='Benchmark task name.')
+    mutex.add_argument('--metric', type=str, default=None, help='Metric type (options: KR, GM, LMC or combined).')
     
     # extra settings
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode.')
     parser.add_argument('--output_file', type=str, default='fitness.parquet', help='Output file name.')
+    parser.add_argument('--exp_id', type=int, help='Experiment id.')
+
 
     return parser.parse_args()

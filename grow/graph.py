@@ -35,9 +35,7 @@ class GraphDef(object):
         c_in = self.A.T @ self.S  # N x S
         c_out = self.A @ self.S   # N x S
         G = np.hstack([self.S, c_in, c_out])  # N x 3S
-        bias_column = np.ones((G.shape[0], 1))  # N x 1
-        out = np.hstack([G, bias_column])  # N x (3S + 1)
-        out = out / np.max(np.abs(out), axis=1, keepdims=True)
+        out = G / np.max(np.abs(G), axis=1, keepdims=True)
         return out
     
     def to_edgelist(self) -> np.ndarray:

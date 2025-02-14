@@ -2,6 +2,7 @@ import numpy as np
 from util.consts import T
 from reservoirpy.datasets import santafe_laser, narma
 
+
 def narmax(order=10, t=None, discard=20):
     """
     Creates NARMA-X sequence for t timesteps, where X is the order of the system.
@@ -15,6 +16,7 @@ def narmax(order=10, t=None, discard=20):
     u = u[discard+order:]
     y = y[discard:]
     return u.T, y.T
+
 
 def santa_fe(t=None, discard=20):
     """

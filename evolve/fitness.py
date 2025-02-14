@@ -1,9 +1,11 @@
 import numpy as np
 from grow.reservoir import Reservoir, check_conditions
-from tasks.series import *
-from tasks.metrics import kernel_rank, generalization_measure, linear_memory_capacity
+from properties.tasks import *
+from properties.metrics import kernel_rank, generalization_measure, linear_memory_capacity
+
 
 NRMSE = lambda y,y_fit: np.mean(((y-y_fit)**2)/np.var(y))
+
 
 class ReservoirFitness:
     """
@@ -61,6 +63,8 @@ class TaskFitness(ReservoirFitness):
             res_.reset()
             predictions = res_.bipolar().train(self.input, target=self.target)
             err = np.min((NRMSE(self.target[:, res.washout:], predictions), 1))     # normalized root mean square error
+            if err is None:
+                err = np.nan
             if self.verbose:
                 print(f'Skipped {self.skip_count}')
             self.skip_count = 0
