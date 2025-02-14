@@ -5,6 +5,7 @@ from scipy.sparse.csgraph import connected_components
 from wrapt_timeout_decorator.wrapt_timeout_decorator import timeout
 import graph_tool.all as gt
 
+
 class GraphDef(object):
 
     def __init__(self, A: np.ndarray, S: np.ndarray):

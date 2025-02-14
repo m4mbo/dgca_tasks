@@ -14,6 +14,7 @@ def parse_arguments():
     # reservoir settings
     parser.add_argument('--input_nodes', type=int, default=0, help='Number reservoir input nodes (not to confuse with input units).')
     parser.add_argument('--output_nodes', type=int, default=0, help='Number reservoir output nodes (not to confuse with output units).')
+    parser.add_argument('--max_size', type=int, help='Maximum reservoir size.')
     
     # task settings
     parser.add_argument('--order', type=int, default=10, help='Order for NARMA sequence.')

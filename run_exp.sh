@@ -9,6 +9,7 @@ INPUT_NODES=0
 OUTPUT_NODES=0
 ORDER=10
 TASK="--task narma"
+MAX_SIZE=100
 # METRIC="--metric KR"
 EXPERIMENT_ID=0
 
@@ -22,6 +23,7 @@ seq 1 $NUM_JOBS | parallel -j $NUM_JOBS python3 ../../main.py \
   --n_trials $N_TRIALS \
   --input_nodes $INPUT_NODES \
   --output_nodes $OUTPUT_NODES \
+  --max_size $MAX_SIZE \
   --order $ORDER \
   $TASK \
   $METRIC \

@@ -14,8 +14,8 @@ if __name__ == "__main__":
 
     project_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
 
-    conditions = {'max_size': 100, 
-                  'min_size': 1}
+    conditions = {'max_size': args.max_size, 
+                  'min_size': 20}
     
     if args.task:
         print(f"Running {args.task} experiment...")
