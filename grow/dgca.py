@@ -48,11 +48,11 @@ class MLP:
 
 
 class DGCA(object):
-    def __init__(self, hidden_size=64, n_states: int=None):
+    def __init__(self, hidden_size=None, n_states: int=None):
         if not n_states:
             return
-        self.action_mlp = MLP(layer_sizes=[3 * n_states, hidden_size, 15])  # 2 layers
-        self.state_mlp = MLP(layer_sizes=[3 * n_states, hidden_size, n_states])  # 2 layers
+        self.action_mlp = MLP(layer_sizes=[3 * n_states, hidden_size, 15] if hidden_size else [3 * n_states, 15] ) 
+        self.state_mlp = MLP(layer_sizes=[3 * n_states, hidden_size, n_states] if hidden_size else [3 * n_states, n_states]) 
     
     def update_action(self, res: Reservoir):
         """

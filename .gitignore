@@ -2,3 +2,4 @@ papers/
 notebooks/
 *.pyc
 *.parquet
+exp/

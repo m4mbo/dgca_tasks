@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     reservoir = get_seed(args.input_nodes, args.output_nodes, N_STATES)
 
-    model = EvolvableDGCA(n_states=reservoir.n_states)  
+    model = EvolvableDGCA(n_states=reservoir.n_states, hidden_size=None)  
     runner = Runner(max_steps=100, max_size=300)
     mga = ChromosomalMGA(popsize=args.pop_size,
                         seed_graph=reservoir,
@@ -44,6 +44,6 @@ if __name__ == "__main__":
                         cross_rate=args.cross_rate,
                         exp_id=args.exp_id,
                         cross_style=args.cross_style,
-                        parquet_filename=args.output_file)
+                        parquet_file=args.output_file)
     
     mga.run(steps=args.n_trials)
