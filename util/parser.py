@@ -24,7 +24,5 @@ def parse_arguments():
     # extra settings
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode.')
     parser.add_argument('--output_file', type=str, default='fitness.parquet', help='Output file name.')
-    parser.add_argument('--exp_id', type=int, help='Experiment id.')
-
 
     return parser.parse_args()

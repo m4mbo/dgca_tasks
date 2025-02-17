@@ -1,5 +1,4 @@
-papers/
-notebooks/
+nb/
 *.pyc
 *.parquet
 exp/

@@ -96,7 +96,7 @@ class GraphDef(object):
                 **kwargs) -> gt.VertexPropertyMap:
         """
         Draws a the graph using the graph-tool library 
-        Relies on node and edge properties set by to_gt()
+        Relies on node and edge measure set by to_gt()
         Returns the node positions, which can then be passed in at the next
         call so that original nodes don't move to much if you are adding more etc.
         NB use output=filename to write to a file.

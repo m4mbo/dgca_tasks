@@ -1,7 +1,7 @@
 import numpy as np
 from grow.reservoir import Reservoir, check_conditions
-from properties.tasks import *
-from properties.metrics import kernel_rank, generalization_measure, linear_memory_capacity
+from measure.tasks import *
+from measure.metrics import kernel_rank, generalization_measure, linear_memory_capacity
 
 
 NRMSE = lambda y,y_fit: np.mean(((y-y_fit)**2)/np.var(y))

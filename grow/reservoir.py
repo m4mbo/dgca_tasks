@@ -1,4 +1,5 @@
 import numpy as np  
+import warnings
 import graph_tool.all as gt
 from util.consts import POLAR_TABLE, T, ACTIVATION_TABLE
 from grow.graph import GraphDef
@@ -134,7 +135,7 @@ class Reservoir(GraphDef):
         # use sfdp_layout for the general layout
         other_pos = gt.sfdp_layout(g, pos=pos)
 
-        # initialize vertex properties
+        # initialize vertex measure
         outline_color = g.new_vertex_property("vector<double>")
         pos = g.new_vertex_property("vector<double>")
 
@@ -189,7 +190,7 @@ class Reservoir(GraphDef):
             else:
                 edge_colors[e] = [1, 0, 0, 1]  # Red for negative weights
 
-        # Assign properties to the graph
+        # Assign measure to the graph
         g.vp['outline_color'] = outline_color
         g.vp['pos'] = pos
         g.ep['edge_color'] = edge_colors
@@ -280,7 +281,12 @@ class Reservoir(GraphDef):
 
         # tikhonov regularization to fit and generalize on unseen data
         regression = BayesianRidge(max_iter=3000, tol=1e-6, verbose=False, fit_intercept=False)
-        regression.fit(state.T, target[0,self.washout:])
+        
+        # TODO: linear nodes can cause overflows, suppress warnings for now
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            regression.fit(state.T, target[0,self.washout:])
+
         self.w_out = np.expand_dims(regression.coef_, axis=0)
         predictions = self.w_out @ state
 
@@ -310,9 +316,14 @@ class Reservoir(GraphDef):
 
         # running the reservoir
         for i in range(input.shape[1]):
-            input_contribution = self.input_gain * self.w_in.T @ input[:, i]
-            feedback_contribution = self.feedback_gain * self.A.T @ self.reservoir_state[:, i-1] if i > 0 else 0
-            raw_state = input_contribution + feedback_contribution
+
+            # TODO: linear nodes can cause overflows, suppress warnings for now
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning)
+                input_contribution = self.input_gain * self.w_in.T @ input[:, i]
+                feedback_contribution = self.feedback_gain * self.A.T @ self.reservoir_state[:, i-1] if i > 0 else 0
+                raw_state = input_contribution + feedback_contribution
+
             # activation function for each node
             for node_idx in range(self.size()):
                 activation_function = ACTIVATION_TABLE[node_states[node_idx]]

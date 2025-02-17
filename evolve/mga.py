@@ -1,12 +1,13 @@
+import os
 from tqdm import tqdm
 import numpy as np
-import os
+import pandas as pd
 import jsonpickle
 from grow.dgca import DGCA
 from grow.reservoir import Reservoir
 from evolve.fitness import ReservoirFitness
+from multiprocessing import Lock
 from grow.runner import Runner
-import pandas as pd
 
 
 class Chromosome:
@@ -153,6 +154,9 @@ class EvolvableDGCA(DGCA):
         return chr_action, chr_state
 
 
+parquet_lock = Lock()
+
+
 class ChromosomalMGA:
 
     def __init__(self, 
@@ -173,6 +177,7 @@ class ChromosomalMGA:
         self.fitness_fn = fitness_fn
         self.parquet_file = parquet_file
         self.exp_id = exp_id
+        self.trial = 0
 
         # nan tolerant
         if self.fitness_fn.high_good:
@@ -193,11 +198,14 @@ class ChromosomalMGA:
         os.makedirs("logs", exist_ok=True)
         print(f'Log will be written to: logs/{self.exp_id}.stdout')
 
-    def run(self, steps: int) -> list[float]:
-        pbar = tqdm(range(steps),postfix={'fit':0,'best':0})
+    def run(self, steps: int, progress: bool=False) -> list[float]:
+        pbar = tqdm(range(steps),postfix={'fit':0,'best':0}) if progress else range(steps)
         for _ in pbar:
             f = self.contest()
-            pbar.set_postfix({'fit':f,'best':self.best_fitness})
+            self.trial += 1
+            if progress:
+                pbar.set_postfix({'fit':f,'best':self.best_fitness})
+        self.flush_to_parquet()
 
     def contest(self) -> float:
         """
@@ -234,34 +242,6 @@ class ChromosomalMGA:
                     # call crossover & mutate on the loser (this changes it in place)
                     chr_lose.crossover(chr_win).mutate()
         return fitness[win]
-    
-    def log_fitness(self, fitness: float, reservoir: Reservoir):
-
-        if self.better(fitness, self.best_fitness):  # Update best fitness globally
-            self.best_fitness = fitness
-        epoch = len(self.fitness_record)
-
-        log_file = os.path.join("logs", f"{self.exp_id}.stdout")
-        log_message = f"Epoch: {epoch}, Fitness: {fitness}, Best Fitness: {self.best_fitness}\n"
-        with open(log_file, "a") as f:
-            f.write(log_message)
-
-        new_row = {
-            "exp_id": self.exp_id,
-            "epoch": epoch,
-            "fitness": fitness,
-            "best_fitness": self.best_fitness,
-            "model": jsonpickle.encode(self.model),
-            "final_reservoir": jsonpickle.encode(reservoir),
-            "skip_count": self.fitness_fn.skip_count
-        }
-        new_data = pd.DataFrame([new_row])
-        try:
-            existing_data = pd.read_parquet(self.parquet_file)
-            updated_data = pd.concat([existing_data, new_data], ignore_index=True)
-        except FileNotFoundError:
-            updated_data = new_data
-        updated_data.to_parquet(self.parquet_file, index=False)
 
     def run_individual(self, chromosomes: list[Chromosome]) -> float:
         """
@@ -276,6 +256,50 @@ class ChromosomalMGA:
             if self.better(fitness, chr.best_fitness):
                 chr.best_fitness = fitness
         if not(np.isnan(fitness)) and (self.parquet_file is not None):
-            self.fitness_record.append(fitness)
             self.log_fitness(fitness, final_res)
         return fitness
+    
+    def log_fitness(self, fitness: float, reservoir: Reservoir):
+
+        if self.better(fitness, self.best_fitness):  # Update best fitness globally
+            self.best_fitness = fitness
+
+        log_file = os.path.join("logs", f"{self.exp_id}.stdout")
+        log_message = f"Epoch: {self.trial}, Fitness: {fitness}, Best Fitness: {self.best_fitness}\n"
+        with open(log_file, "a") as f:
+            f.write(log_message)
+
+        self.fitness_record.append({
+            "exp_id": self.exp_id,
+            "epoch": self.trial,
+            "fitness": fitness,
+            "best_fitness": self.best_fitness,
+            "model": jsonpickle.encode(self.model),
+            "final_reservoir": jsonpickle.encode(reservoir),
+            "skip_count": self.fitness_fn.skip_count
+        })
+
+        # write in batches
+        if len(self.fitness_record) >= 20:  # every 20 records
+            self.flush_to_parquet()
+
+    def flush_to_parquet(self):
+        """ 
+        Append collected results to a shared Parquet file safely.
+        """
+        if not self.fitness_record or self.parquet_file is None:
+            return
+
+        new_data = pd.DataFrame(self.fitness_record)
+        self.fitness_record.clear()
+
+        with parquet_lock:  # one process at a time
+            try:
+                if os.path.exists(self.parquet_file):
+                    existing_data = pd.read_parquet(self.parquet_file)
+                    updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+                else:
+                    updated_data = new_data
+                updated_data.to_parquet(self.parquet_file, index=False)
+            except Exception as e:
+                print(f"Error writing to {self.parquet_file}: {e}")

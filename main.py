@@ -4,7 +4,7 @@ from grow.runner import Runner
 from grow.reservoir import get_seed
 from evolve.fitness import TaskFitness, MetricFitness
 from evolve.mga import ChromosomalMGA, EvolvableDGCA
-from properties.tasks import narmax, santa_fe
+from measure.tasks import narmax, santa_fe
 from util.parser import parse_arguments
 from util.consts import N_STATES
 
