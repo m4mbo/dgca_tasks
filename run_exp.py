@@ -21,7 +21,7 @@ def run_ga(exp_id, args):
     if args.task:
         fitness_fn = TaskFitness(series=narmax if args.task == "narma" else santa_fe,
                                  conditions=conditions, 
-                                 verbose=False,  # Assuming verbose is False if not provided
+                                 verbose=False,
                                  order=args.order,
                                  fixed_series=True)
     elif args.metric:
