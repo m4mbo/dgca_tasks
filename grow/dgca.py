@@ -10,7 +10,6 @@ def onehot(x: np.ndarray):
     tf = x == np.max(x, axis=1, keepdims=True)
     return tf.astype(int)
 
-
 class MLP:
     def __init__(self, layer_sizes):
         self.layer_sizes = layer_sizes
@@ -46,13 +45,12 @@ class MLP:
         self.weights = weights
         self.biases = biases
 
-
 class DGCA(object):
     def __init__(self, hidden_size=None, n_states: int=None):
         if not n_states:
             return
-        self.action_mlp = MLP(layer_sizes=[3 * n_states, hidden_size, 15] if hidden_size else [3 * n_states, 15] ) 
-        self.state_mlp = MLP(layer_sizes=[3 * n_states, hidden_size, n_states] if hidden_size else [3 * n_states, n_states]) 
+        self.action_mlp = MLP(layer_sizes=[3 * n_states, hidden_size, 15] if hidden_size else [3 * n_states, 15])   # action MLP
+        self.state_mlp = MLP(layer_sizes=[3 * n_states, n_states] if hidden_size else [3 * n_states, n_states])     # state SLP
     
     def update_action(self, res: Reservoir):
         """
@@ -101,7 +99,7 @@ class DGCA(object):
        
     def update_state(self, res: Reservoir):
         """
-        Second MLP.
+        Second SLP.
         """
         G = res.get_neighbourhood()
         D = self.state_mlp.forward(G)  # N x S

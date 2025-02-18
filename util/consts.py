@@ -29,7 +29,6 @@ POLAR_TABLE = np.array([
 def linear(x):
     return x
 
-
 def stable_sigmoid(x):
     """
     Numerically stable sigmoid function.
@@ -40,7 +39,6 @@ def stable_sigmoid(x):
         1 / (1 + np.exp(-x)),
         np.exp(x) / (1 + np.exp(x))
     )
-
 
 def tanh(x):
     return np.tanh(x)

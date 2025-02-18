@@ -1,6 +1,7 @@
 from grow.reservoir import Reservoir
 from grow.dgca import DGCA
 
+
 def rindex(it, li):
     """
     Reverse index() ie.

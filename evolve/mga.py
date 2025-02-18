@@ -1,8 +1,9 @@
 import os
-from tqdm import tqdm
-import numpy as np
-import pandas as pd
+import logging
+import sqlite3
 import jsonpickle
+import numpy as np
+from tqdm import tqdm
 from grow.dgca import DGCA
 from grow.reservoir import Reservoir
 from evolve.fitness import ReservoirFitness
@@ -137,7 +138,6 @@ class Chromosome:
         new_biases = [np.random.uniform(-1, 1, b.shape) for b in self.biases]
         return Chromosome(new_weights, new_biases, self.mutate_rate, self.crossover_rate, self.crossover_style)
    
-
 class EvolvableDGCA(DGCA):
     def __init__(self, n_states, hidden_size=None):
         super().__init__(n_states=n_states, hidden_size=hidden_size)
@@ -153,15 +153,13 @@ class EvolvableDGCA(DGCA):
         chr_state = Chromosome(weights_state, biases_state, mutate_rate, cross_rate, cross_style)
         return chr_action, chr_state
 
-
-parquet_lock = Lock()
-
+sqlite_lock = Lock()
 
 class ChromosomalMGA:
-
+    
     def __init__(self, 
                  popsize: int,
-                 model: EvolvableDGCA,
+                 model: DGCA,
                  seed_graph: Reservoir,
                  runner: Runner,
                  fitness_fn: ReservoirFitness,
@@ -169,43 +167,96 @@ class ChromosomalMGA:
                  cross_rate: float, 
                  cross_style: str,
                  exp_id: int,
-                 parquet_file: str | None = None):
+                 output_file: str = "fitness.db",
+                 bsz: int = 20):
         self.popsize = popsize
         self.model = model
         self.seed_graph = seed_graph
         self.runner = runner
         self.fitness_fn = fitness_fn
-        self.parquet_file = parquet_file
         self.exp_id = exp_id
         self.trial = 0
+        
+        # logging
+        os.makedirs("logs", exist_ok=True)
+        self.log_file = os.path.join("logs", f"{self.exp_id}.stdout")
+        logging.basicConfig(filename=self.log_file, level=logging.INFO, format="%(message)s")
+        
+        self.output_file = output_file
 
-        # nan tolerant
+        self.fitness_cache = []  
+        self.bsz = bsz  # batch size for logging
+
+        # nan tolerant fitness comparison
         if self.fitness_fn.high_good:
             self.better = lambda a, b: np.isnan(b) or a >= b
-            self.best_fitness = -np.inf 
+            self.best_fitness = -float("inf")
         else:
             self.better = lambda a, b: np.isnan(b) or a <= b
-            self.best_fitness = np.inf  
+            self.best_fitness = float("inf")
 
         self.base_chromosomes = self.model.get_chromosomes(mutate_rate, cross_rate, cross_style)
         self.pop_chromosomes = np.array([[bc.get_new() for _ in range(self.popsize)] for bc in self.base_chromosomes]).T
         self.num_chromosomes = len(self.base_chromosomes)
-        self.fitness_record = [] 
 
-        # print settings
-        if self.parquet_file is not None:
-            print(f'Results will be written to: {self.parquet_file}')
-        os.makedirs("logs", exist_ok=True)
-        print(f'Log will be written to: logs/{self.exp_id}.stdout')
+        self._initialize_database()
 
-    def run(self, steps: int, progress: bool=False) -> list[float]:
-        pbar = tqdm(range(steps),postfix={'fit':0,'best':0}) if progress else range(steps)
+        print(f"Results will be stored in SQLite: {self.output_file}")
+
+    def _initialize_database(self):
+        with sqlite_lock, sqlite3.connect(self.output_file, timeout=10) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS fitness_log (
+                    exp_id INTEGER,
+                    epoch INTEGER,
+                    fitness REAL,
+                    best_fitness REAL,
+                    model TEXT,
+                    final_reservoir TEXT,
+                    skip_count INTEGER
+                )
+            """)
+            conn.commit()
+
+    def log_fitness(self, fitness: float, reservoir: Reservoir):
+        """
+        Efficiently logs fitness results to a log file and SQLite.
+        Uses buffered logging and batch writes to reduce latency.
+        """
+
+        if self.better(fitness, self.best_fitness):
+            self.best_fitness = fitness
+
+        logging.info(f"Epoch: {self.trial}, Fitness: {fitness}, Best Fitness: {self.best_fitness}")
+
+        # store record in cache
+        data = (self.exp_id, self.trial, fitness, self.best_fitness,
+                jsonpickle.encode(self.model), jsonpickle.encode(reservoir),
+                self.fitness_fn.skip_count)
+        self.fitness_cache.append(data)
+
+        # Write to SQLite in batches
+        if len(self.fitness_cache) >= self.bsz:
+            with sqlite_lock, sqlite3.connect(self.output_file, timeout=10) as conn:
+                cursor = conn.cursor()
+                cursor.executemany("""
+                    INSERT INTO fitness_log (exp_id, epoch, fitness, best_fitness, model, final_reservoir, skip_count)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, self.fitness_cache)
+                conn.commit()
+                self.fitness_cache.clear()  # reset cache after commit
+
+    def run(self, steps: int, progress: bool=False):
+        """
+        Main evolution loop.
+        """
+        pbar = tqdm(range(steps), postfix={'fit':0, 'best':0}) if progress else range(steps)
         for _ in pbar:
             f = self.contest()
             self.trial += 1
             if progress:
-                pbar.set_postfix({'fit':f,'best':self.best_fitness})
-        self.flush_to_parquet()
+                pbar.set_postfix({'fit': f, 'best': self.best_fitness})
 
     def contest(self) -> float:
         """
@@ -255,51 +306,6 @@ class ChromosomalMGA:
         for chr in chromosomes:
             if self.better(fitness, chr.best_fitness):
                 chr.best_fitness = fitness
-        if not(np.isnan(fitness)) and (self.parquet_file is not None):
+        if not(np.isnan(fitness)) and (self.output_file is not None):
             self.log_fitness(fitness, final_res)
         return fitness
-    
-    def log_fitness(self, fitness: float, reservoir: Reservoir):
-
-        if self.better(fitness, self.best_fitness):  # Update best fitness globally
-            self.best_fitness = fitness
-
-        log_file = os.path.join("logs", f"{self.exp_id}.stdout")
-        log_message = f"Epoch: {self.trial}, Fitness: {fitness}, Best Fitness: {self.best_fitness}\n"
-        with open(log_file, "a") as f:
-            f.write(log_message)
-
-        self.fitness_record.append({
-            "exp_id": self.exp_id,
-            "epoch": self.trial,
-            "fitness": fitness,
-            "best_fitness": self.best_fitness,
-            "model": jsonpickle.encode(self.model),
-            "final_reservoir": jsonpickle.encode(reservoir),
-            "skip_count": self.fitness_fn.skip_count
-        })
-
-        # write in batches
-        if len(self.fitness_record) >= 20:  # every 20 records
-            self.flush_to_parquet()
-
-    def flush_to_parquet(self):
-        """ 
-        Append collected results to a shared Parquet file safely.
-        """
-        if not self.fitness_record or self.parquet_file is None:
-            return
-
-        new_data = pd.DataFrame(self.fitness_record)
-        self.fitness_record.clear()
-
-        with parquet_lock:  # one process at a time
-            try:
-                if os.path.exists(self.parquet_file):
-                    existing_data = pd.read_parquet(self.parquet_file)
-                    updated_data = pd.concat([existing_data, new_data], ignore_index=True)
-                else:
-                    updated_data = new_data
-                updated_data.to_parquet(self.parquet_file, index=False)
-            except Exception as e:
-                print(f"Error writing to {self.parquet_file}: {e}")

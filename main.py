@@ -44,6 +44,6 @@ if __name__ == "__main__":
                         cross_rate=args.cross_rate,
                         exp_id=args.exp_id,
                         cross_style=args.cross_style,
-                        parquet_file=args.output_file)
+                        output_file=args.output_file)
     
     mga.run(steps=args.n_trials)

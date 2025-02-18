@@ -50,7 +50,6 @@ def check_conditions(res: 'Reservoir',
         print(f'Reservoir OK: size={size}, conn={conn*100:.2f}%, frag={frag:.2f}')
     return True
 
-
 def dfs_directed(A: np.ndarray, current: int, visited: set) -> bool:
     """
     Perform a recursive DFS on a directed adjacency matrix
@@ -66,7 +65,6 @@ def dfs_directed(A: np.ndarray, current: int, visited: set) -> bool:
             if dfs_directed(A, neighbor, visited):
                 return True
     return False
-
 
 def get_seed(input_nodes: int, 
              output_nodes: int, 

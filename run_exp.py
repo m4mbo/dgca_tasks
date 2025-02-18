@@ -42,11 +42,10 @@ def run_ga(exp_id, args):
                         cross_rate=args.cross_rate,
                         exp_id=exp_id,  
                         cross_style=args.cross_style,
-                        parquet_file=args.output_file)
+                        output_file=args.output_file)
     
     mga.run(steps=args.n_trials)
     print(f"Completed GA run {exp_id}.")
-
 
 if __name__ == "__main__":
 
@@ -62,13 +61,13 @@ if __name__ == "__main__":
         "task": "narma",
         "max_size": 200,
         "metric": None, 
-        "output_file": "fitness.parquet",
+        "output_file": "fitness.db",
         "num_jobs": 150
     }
 
     args = SimpleNamespace(**args_dict)
 
-    num_parallel_jobs = 15  # match with cpu cores
+    num_parallel_jobs = 13  # match with cpu cores
     total_runs = 150 
 
     Parallel(n_jobs=num_parallel_jobs)(
