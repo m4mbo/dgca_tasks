@@ -1,4 +1,4 @@
-name: DGCAasks
+name: dgca_tasks
 channels:
   - conda-forge
 dependencies:
@@ -13,3 +13,4 @@ dependencies:
   - pip:
     - wrapt_timeout_decorator
     - multiset
+    - reservoirpy

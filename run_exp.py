@@ -60,7 +60,7 @@ if __name__ == "__main__":
         "output_nodes": 0,
         "order": 10,
         "task": "narma",
-        "max_size": 100,
+        "max_size": 200,
         "metric": None, 
         "output_file": "fitness.parquet",
         "num_jobs": 150
@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     args = SimpleNamespace(**args_dict)
 
-    num_parallel_jobs = 24  # match with cpu cores
+    num_parallel_jobs = 16  # match with cpu cores
     total_runs = 150 
 
     Parallel(n_jobs=num_parallel_jobs)(
