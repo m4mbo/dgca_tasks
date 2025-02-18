@@ -283,9 +283,13 @@ class Reservoir(GraphDef):
         regression = BayesianRidge(max_iter=3000, tol=1e-6, verbose=False, fit_intercept=False)
         
         # TODO: linear nodes can cause overflows, suppress warnings for now
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=RuntimeWarning)
-            regression.fit(state.T, target[0,self.washout:])
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning)  
+                regression.fit(state.T, target[0, self.washout:])
+        except Exception as e:
+            print(f"[ERROR] Regression fitting failed: {e}")
+            return None
 
         self.w_out = np.expand_dims(regression.coef_, axis=0)
         predictions = self.w_out @ state

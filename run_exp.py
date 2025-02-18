@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     args = SimpleNamespace(**args_dict)
 
-    num_parallel_jobs = 16  # match with cpu cores
+    num_parallel_jobs = 15  # match with cpu cores
     total_runs = 150 
 
     Parallel(n_jobs=num_parallel_jobs)(

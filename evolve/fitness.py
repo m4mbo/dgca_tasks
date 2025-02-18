@@ -62,9 +62,7 @@ class TaskFitness(ReservoirFitness):
             self.input, self.target = self._generate_series()
             res_.reset()
             predictions = res_.bipolar().train(self.input, target=self.target)
-            err = np.min((NRMSE(self.target[:, res.washout:], predictions), 1))     # normalized root mean square error
-            if err is None:
-                err = np.nan
+            err = np.nan if predictions is None else np.min((NRMSE(self.target[:, res.washout:], predictions), 1))
             if self.verbose:
                 print(f'Skipped {self.skip_count}')
             self.skip_count = 0

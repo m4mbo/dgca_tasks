@@ -2,3 +2,4 @@ nb/
 *.pyc
 *.parquet
 exp/
+notebooks/
