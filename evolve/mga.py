@@ -170,7 +170,7 @@ class ChromosomalMGA:
                  run_id: int,
                  db_file: str = "fitness.db",
                  n_trials: int = 2000,
-                 bsz: int = 1):
+                 bsz: int = 20):
         self.popsize = popsize
         self.model = model
         self.seed_graph = seed_graph
@@ -250,7 +250,7 @@ class ChromosomalMGA:
         Uses buffered logging and batch writes to reduce latency.
         """
         # no mutex, adds too much overhead
-        kr, gm = get_metrics(reservoir)
+        # kr, gm = get_metrics(reservoir)
 
         with log_lock:  
             if self.better(fitness, self.best_fitness):
@@ -263,7 +263,7 @@ class ChromosomalMGA:
 
             data = (
                 self.run_id, self.trial, fitness, 
-                self.best_fitness, kr/reservoir.size(), gm, reservoir.size(),
+                self.best_fitness, 0., 0., reservoir.size(),
                 self.fitness_fn.skip_count
             )
             self.fitness_cache.append(data)
