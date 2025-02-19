@@ -153,7 +153,7 @@ class EvolvableDGCA(DGCA):
         chr_state = Chromosome(weights_state, biases_state, mutate_rate, cross_rate, cross_style)
         return chr_action, chr_state
 
-sqlite_lock = Lock()
+log_lock = Lock() 
 
 class ChromosomalMGA:
     
@@ -166,7 +166,7 @@ class ChromosomalMGA:
                  mutate_rate: float, 
                  cross_rate: float, 
                  cross_style: str,
-                 exp_id: int,
+                 run_id: int,
                  output_file: str = "fitness.db",
                  bsz: int = 20):
         self.popsize = popsize
@@ -174,13 +174,22 @@ class ChromosomalMGA:
         self.seed_graph = seed_graph
         self.runner = runner
         self.fitness_fn = fitness_fn
-        self.exp_id = exp_id
+        self.run_id = run_id
         self.trial = 0
         
         # logging
         os.makedirs("logs", exist_ok=True)
-        self.log_file = os.path.join("logs", f"{self.exp_id}.stdout")
-        logging.basicConfig(filename=self.log_file, level=logging.INFO, format="%(message)s")
+        self.log_file = os.path.join("logs", f"{self.run_id}.stdout")        
+        self.logger = logging.getLogger(f"run_{self.run_id}")  
+        self.logger.setLevel(logging.INFO)
+        
+        # # prevents duplicate handlers
+        if self.logger.hasHandlers():
+            self.logger.handlers.clear()
+
+        file_handler = logging.FileHandler(self.log_file, mode='w') 
+        file_handler.setFormatter(logging.Formatter("%(message)s"))
+        self.logger.addHandler(file_handler)
         
         self.output_file = output_file
 
@@ -204,11 +213,11 @@ class ChromosomalMGA:
         print(f"Results will be stored in SQLite: {self.output_file}")
 
     def _initialize_database(self):
-        with sqlite_lock, sqlite3.connect(self.output_file, timeout=10) as conn:
+        with log_lock, sqlite3.connect(self.output_file, timeout=10) as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS fitness_log (
-                    exp_id INTEGER,
+                    run_id INTEGER,
                     epoch INTEGER,
                     fitness REAL,
                     best_fitness REAL,
@@ -219,33 +228,36 @@ class ChromosomalMGA:
             """)
             conn.commit()
 
+    from multiprocessing import Lock
+
     def log_fitness(self, fitness: float, reservoir: Reservoir):
         """
         Efficiently logs fitness results to a log file and SQLite.
         Uses buffered logging and batch writes to reduce latency.
         """
+        with log_lock:  
+            if self.better(fitness, self.best_fitness):
+                self.best_fitness = fitness
 
-        if self.better(fitness, self.best_fitness):
-            self.best_fitness = fitness
+            self.logger.info(f"Epoch: {self.trial}, Fitness: {fitness}, Best Fitness: {self.best_fitness}")
 
-        logging.info(f"Epoch: {self.trial}, Fitness: {fitness}, Best Fitness: {self.best_fitness}")
-
-        # store record in cache
-        data = (self.exp_id, self.trial, fitness, self.best_fitness,
+            data = (
+                self.run_id, self.trial, fitness, self.best_fitness,
                 jsonpickle.encode(self.model), jsonpickle.encode(reservoir),
-                self.fitness_fn.skip_count)
-        self.fitness_cache.append(data)
+                self.fitness_fn.skip_count
+            )
+            self.fitness_cache.append(data)
 
-        # Write to SQLite in batches
-        if len(self.fitness_cache) >= self.bsz:
-            with sqlite_lock, sqlite3.connect(self.output_file, timeout=10) as conn:
-                cursor = conn.cursor()
-                cursor.executemany("""
-                    INSERT INTO fitness_log (exp_id, epoch, fitness, best_fitness, model, final_reservoir, skip_count)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, self.fitness_cache)
-                conn.commit()
-                self.fitness_cache.clear()  # reset cache after commit
+            # write in batches
+            if len(self.fitness_cache) >= self.bsz:
+                with sqlite3.connect(self.output_file, timeout=10) as conn:
+                    cursor = conn.cursor()
+                    cursor.executemany("""
+                        INSERT INTO fitness_log (run_id, epoch, fitness, best_fitness, model, final_reservoir, skip_count)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, self.fitness_cache)
+                    conn.commit()
+                    self.fitness_cache.clear()  # reset cache
 
     def run(self, steps: int, progress: bool=False):
         """
@@ -257,6 +269,7 @@ class ChromosomalMGA:
             self.trial += 1
             if progress:
                 pbar.set_postfix({'fit': f, 'best': self.best_fitness})
+        self.logger.info("Finished.")
 
     def contest(self) -> float:
         """

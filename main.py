@@ -42,7 +42,7 @@ if __name__ == "__main__":
                         fitness_fn=fitness_fn,
                         mutate_rate=args.mutate_rate,
                         cross_rate=args.cross_rate,
-                        exp_id=args.exp_id,
+                        run_id=args.run_id,
                         cross_style=args.cross_style,
                         output_file=args.output_file)
     

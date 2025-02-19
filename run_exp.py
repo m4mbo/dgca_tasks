@@ -10,11 +10,11 @@ from measure.tasks import narmax, santa_fe
 from util.consts import N_STATES
 
 
-def run_ga(exp_id, args):
+def run_ga(run_id, args):
     """
     Runs a single GA experiment instance.
     """
-    print(f"Starting GA run {exp_id}...")
+    print(f"Starting GA run {run_id}...")
 
     conditions = {'max_size': args.max_size, 'min_size': 20}
 
@@ -40,12 +40,12 @@ def run_ga(exp_id, args):
                         fitness_fn=fitness_fn,
                         mutate_rate=args.mutate_rate,
                         cross_rate=args.cross_rate,
-                        exp_id=exp_id,  
+                        run_id=run_id,  
                         cross_style=args.cross_style,
                         output_file=args.output_file)
     
     mga.run(steps=args.n_trials)
-    print(f"Completed GA run {exp_id}.")
+    print(f"Completed GA run {run_id}.")
 
 if __name__ == "__main__":
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
         "mutate_rate": 0.02,
         "cross_rate": 0.5,
         "cross_style": "cols",
-        "n_trials": 2000,
+        "n_trials": 3,
         "input_nodes": 0,
         "output_nodes": 0,
         "order": 10,
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     total_runs = 150 
 
     Parallel(n_jobs=num_parallel_jobs)(
-        delayed(run_ga)(exp_id, args) for exp_id in range(total_runs)
+        delayed(run_ga)(run_id, args) for run_id in range(total_runs)
     )
 
     print("All GA runs completed.")
