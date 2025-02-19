@@ -64,6 +64,8 @@ def exponential_discretization(x: float, num_bins: int, upper_bound: float):
     Helper function for generalization_measure.
     Discretizes a value x into a bin number.
     """  
+    if x <= 0 or upper_bound <= 0:
+        return 0    
     return np.max((1, np.ceil(np.log2(x/upper_bound) + num_bins)))
             
 def sample_history(i: int, 

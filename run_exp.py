@@ -41,10 +41,11 @@ def run_ga(run_id, args):
                         mutate_rate=args.mutate_rate,
                         cross_rate=args.cross_rate,
                         run_id=run_id,  
+                        n_trials=args.n_trials,
                         cross_style=args.cross_style,
-                        output_file=args.output_file)
+                        db_file=args.output_file)
     
-    mga.run(steps=args.n_trials)
+    mga.run()
     print(f"Completed GA run {run_id}.")
 
 if __name__ == "__main__":
@@ -54,12 +55,12 @@ if __name__ == "__main__":
         "mutate_rate": 0.02,
         "cross_rate": 0.5,
         "cross_style": "cols",
-        "n_trials": 3,
+        "n_trials": 2000,
         "input_nodes": 0,
         "output_nodes": 0,
         "order": 10,
         "task": "narma",
-        "max_size": 200,
+        "max_size": 100,
         "metric": None, 
         "output_file": "fitness.db",
         "num_jobs": 150
@@ -67,7 +68,7 @@ if __name__ == "__main__":
 
     args = SimpleNamespace(**args_dict)
 
-    num_parallel_jobs = 13  # match with cpu cores
+    num_parallel_jobs = 20  # match with cpu cores
     total_runs = 150 
 
     Parallel(n_jobs=num_parallel_jobs)(

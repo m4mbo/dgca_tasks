@@ -8,6 +8,7 @@ from grow.dgca import DGCA
 from grow.reservoir import Reservoir
 from evolve.fitness import ReservoirFitness
 from multiprocessing import Lock
+from measure.metrics import get_metrics
 from grow.runner import Runner
 
 
@@ -100,26 +101,26 @@ class Chromosome:
         """
         for i in range(len(self.weights)):
             if self.crossover_style == 'rows':
-                # Row-wise crossover
+                # row-wise crossover
                 row_idx = np.random.choice(
                     range(self.weights[i].shape[0]),
                     size=int(self.weights[i].shape[0] * self.crossover_rate),
                     replace=False
                 )
-                # Swap rows
+                # swap rows
                 self.weights[i][row_idx, :] = other.weights[i][row_idx, :]
             elif self.crossover_style == 'cols':
-                # Column-wise crossover
+                # column-wise crossover
                 col_idx = np.random.choice(
                     range(self.weights[i].shape[1]),
                     size=int(self.weights[i].shape[1] * self.crossover_rate),
                     replace=False
                 )
-                # Swap columns
+                # swap columns
                 self.weights[i][:, col_idx] = other.weights[i][:, col_idx]
 
         for i in range(len(self.biases)):
-            # Bias crossover (element-wise)
+            # bias crossover (element-wise)
             idx = np.random.choice(
                 range(self.biases[i].shape[0]),
                 size=int(self.biases[i].shape[0] * self.crossover_rate),
@@ -167,8 +168,9 @@ class ChromosomalMGA:
                  cross_rate: float, 
                  cross_style: str,
                  run_id: int,
-                 output_file: str = "fitness.db",
-                 bsz: int = 20):
+                 db_file: str = "fitness.db",
+                 n_trials: int = 2000,
+                 bsz: int = 1):
         self.popsize = popsize
         self.model = model
         self.seed_graph = seed_graph
@@ -176,6 +178,7 @@ class ChromosomalMGA:
         self.fitness_fn = fitness_fn
         self.run_id = run_id
         self.trial = 0
+        self.n_trials = n_trials
         
         # logging
         os.makedirs("logs", exist_ok=True)
@@ -183,7 +186,7 @@ class ChromosomalMGA:
         self.logger = logging.getLogger(f"run_{self.run_id}")  
         self.logger.setLevel(logging.INFO)
         
-        # # prevents duplicate handlers
+        # prevents duplicate handlers
         if self.logger.hasHandlers():
             self.logger.handlers.clear()
 
@@ -191,7 +194,7 @@ class ChromosomalMGA:
         file_handler.setFormatter(logging.Formatter("%(message)s"))
         self.logger.addHandler(file_handler)
         
-        self.output_file = output_file
+        self.db_file = db_file
 
         self.fitness_cache = []  
         self.bsz = bsz  # batch size for logging
@@ -210,22 +213,33 @@ class ChromosomalMGA:
 
         self._initialize_database()
 
-        print(f"Results will be stored in SQLite: {self.output_file}")
+        print(f"Results will be stored in SQLite: {self.db_file}")
 
     def _initialize_database(self):
-        with log_lock, sqlite3.connect(self.output_file, timeout=10) as conn:
+        with log_lock, sqlite3.connect(self.db_file, timeout=10) as conn:
             cursor = conn.cursor()
+            
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS fitness_log (
+                CREATE TABLE IF NOT EXISTS fitness (
                     run_id INTEGER,
                     epoch INTEGER,
                     fitness REAL,
                     best_fitness REAL,
-                    model TEXT,
-                    final_reservoir TEXT,
+                    kr REAL,
+                    gm REAL,
+                    size INT,
                     skip_count INTEGER
                 )
             """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS models (
+                    run_id INTEGER PRIMARY KEY,
+                    model TEXT,
+                    reservoir TEXT
+                )
+            """)
+            
             conn.commit()
 
     from multiprocessing import Lock
@@ -235,41 +249,68 @@ class ChromosomalMGA:
         Efficiently logs fitness results to a log file and SQLite.
         Uses buffered logging and batch writes to reduce latency.
         """
+        # no mutex, adds too much overhead
+        kr, gm = get_metrics(reservoir)
+
         with log_lock:  
             if self.better(fitness, self.best_fitness):
                 self.best_fitness = fitness
 
             self.logger.info(f"Epoch: {self.trial}, Fitness: {fitness}, Best Fitness: {self.best_fitness}")
 
+            if self.trial == self.n_trials-1:
+                self.reservoir = reservoir
+
             data = (
-                self.run_id, self.trial, fitness, self.best_fitness,
-                jsonpickle.encode(self.model), jsonpickle.encode(reservoir),
+                self.run_id, self.trial, fitness, 
+                self.best_fitness, kr/reservoir.size(), gm, reservoir.size(),
                 self.fitness_fn.skip_count
             )
             self.fitness_cache.append(data)
 
             # write in batches
             if len(self.fitness_cache) >= self.bsz:
-                with sqlite3.connect(self.output_file, timeout=10) as conn:
+                with sqlite3.connect(self.db_file, timeout=10) as conn:
                     cursor = conn.cursor()
                     cursor.executemany("""
-                        INSERT INTO fitness_log (run_id, epoch, fitness, best_fitness, model, final_reservoir, skip_count)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO fitness (run_id, epoch, fitness, best_fitness, kr, gm, size, skip_count)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """, self.fitness_cache)
                     conn.commit()
                     self.fitness_cache.clear()  # reset cache
+    
+    def log_model(self):
+        """
+        Save the final model and reservoir.
+        """
+        with log_lock, sqlite3.connect(self.db_file, timeout=10) as conn:
+            cursor = conn.cursor()
 
-    def run(self, steps: int, progress: bool=False):
+            cursor.execute("""
+                INSERT INTO models (run_id, model, reservoir) 
+                VALUES (?, ?, ?)
+                ON CONFLICT(run_id) DO UPDATE SET 
+                    model = excluded.model,
+                    reservoir = excluded.reservoir
+            """, (self.run_id, jsonpickle.encode(self.model), jsonpickle.encode(self.reservoir)))
+
+            conn.commit()
+
+        print(f"Final model and reservoir stored in SQLite: {self.db_file}")
+
+    def run(self, progress: bool=False):
         """
         Main evolution loop.
         """
-        pbar = tqdm(range(steps), postfix={'fit':0, 'best':0}) if progress else range(steps)
+        pbar = tqdm(range(self.n_trials), postfix={'fit':0, 'best':0}) if progress else range(self.n_trials)
         for _ in pbar:
             f = self.contest()
             self.trial += 1
             if progress:
                 pbar.set_postfix({'fit': f, 'best': self.best_fitness})
-        self.logger.info("Finished.")
+        
+        # log final model and reservoir
+        self.log_model()
 
     def contest(self) -> float:
         """
@@ -319,6 +360,6 @@ class ChromosomalMGA:
         for chr in chromosomes:
             if self.better(fitness, chr.best_fitness):
                 chr.best_fitness = fitness
-        if not(np.isnan(fitness)) and (self.output_file is not None):
+        if not(np.isnan(fitness)) and (self.db_file is not None):
             self.log_fitness(fitness, final_res)
         return fitness
