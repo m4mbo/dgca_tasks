@@ -59,10 +59,8 @@ class TaskFitness(ReservoirFitness):
                 predictions = res_.bipolar().train(self.input, target=self.target)
                 err = np.nan if predictions is None else np.min((NRMSE(self.target[:, res.washout:], predictions), 1))
                 errors.append(err)
-            if errors:
-                err = np.nanmean(errors)
-            else:
-                err = np.nan
+            valid_errors = [e for e in errors if not np.isnan(e)]
+            err = np.nanmean(errors) if valid_errors else np.nan
             if self.verbose:
                 print(f'Skipped {self.skip_count}')
             self.skip_count = 0
