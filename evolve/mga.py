@@ -170,6 +170,7 @@ class ChromosomalMGA:
                  run_id: int,
                  db_file: str = "fitness.db",
                  n_trials: int = 2000,
+                 heavy_log: bool = False,
                  bsz: int = 20):
         self.popsize = popsize
         self.model = model
@@ -179,6 +180,7 @@ class ChromosomalMGA:
         self.run_id = run_id
         self.trial = 0
         self.n_trials = n_trials
+        self.heavy_log = heavy_log
         
         # logging
         os.makedirs("logs", exist_ok=True)
@@ -234,7 +236,8 @@ class ChromosomalMGA:
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS models (
-                    run_id INTEGER PRIMARY KEY,
+                    run_id INTEGER,
+                    epoch INTEGER,
                     model TEXT,
                     reservoir TEXT
                 )
@@ -252,14 +255,13 @@ class ChromosomalMGA:
         # no mutex, adds too much overhead
         # kr, gm = get_metrics(reservoir)
 
+        self.reservoir = reservoir  # updating current reservoir
+
         with log_lock:  
             if self.better(fitness, self.best_fitness):
                 self.best_fitness = fitness
 
             self.logger.info(f"Epoch: {self.trial}, Fitness: {fitness}, Best Fitness: {self.best_fitness}")
-
-            if self.trial == self.n_trials-1:
-                self.reservoir = reservoir
 
             data = (
                 self.run_id, self.trial, fitness, 
@@ -287,12 +289,9 @@ class ChromosomalMGA:
             cursor = conn.cursor()
 
             cursor.execute("""
-                INSERT INTO models (run_id, model, reservoir) 
-                VALUES (?, ?, ?)
-                ON CONFLICT(run_id) DO UPDATE SET 
-                    model = excluded.model,
-                    reservoir = excluded.reservoir
-            """, (self.run_id, jsonpickle.encode(self.model), jsonpickle.encode(self.reservoir)))
+                INSERT INTO models (run_id, epoch, model, reservoir) 
+                VALUES (?, ?, ?, ?)
+            """, (self.run_id, self.trial, jsonpickle.encode(self.model), jsonpickle.encode(self.reservoir)))
 
             conn.commit()
 
@@ -308,9 +307,6 @@ class ChromosomalMGA:
             self.trial += 1
             if progress:
                 pbar.set_postfix({'fit': f, 'best': self.best_fitness})
-        
-        # log final model and reservoir
-        self.log_model()
 
     def contest(self) -> float:
         """
@@ -362,4 +358,6 @@ class ChromosomalMGA:
                 chr.best_fitness = fitness
         if not(np.isnan(fitness)) and (self.db_file is not None):
             self.log_fitness(fitness, final_res)
+            if self.heavy_log or self.trial == self.n_trials-1:
+                self.log_model()
         return fitness

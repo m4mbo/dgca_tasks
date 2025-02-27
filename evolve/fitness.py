@@ -20,34 +20,28 @@ class TaskFitness(ReservoirFitness):
 
     def __init__(self,
                  series: callable,
-                 conditions: dict=dict(),
-                 self_loops: bool=True,
-                 verbose: bool=False,
-                 order: int=None,
-                 fixed_series: bool=True
+                 conditions: dict = dict(),
+                 self_loops: bool = True,
+                 verbose: bool = False,
+                 order: int = None,
+                 fixed_series: bool = True
                  ) -> None:
-        super().__init__(high_good = False) # because we will be returning an error metric, so low is good.
+        super().__init__(high_good=False)   # error so low is good
         self.self_loops = self_loops
         self.conditions = conditions
         self.verbose = verbose
         self.skip_count = 0
         self.series = series
         self.order = order
-        self.memo = {'fitness':[], 'graph':[], 'model':[]}
+        self.memo = {'fitness': [], 'graph': [], 'model': []}
         self.fixed_series = fixed_series
-        self.input, self.target = self._generate_series()
+        self.input, self.target = self.series(order=self.order)
 
     def _generate_series(self):
-        """
-        Helper method to generate the input and target series based on
-        the fixed_series and order.
-        """
-        if self.fixed_series:
-            if self.order is not None:
-                return self.series(order=self.order)
-            else:
-                return self.series()
-        return None, None
+        """Generate input and target series, depending on fixed_series flag."""
+        if not self.fixed_series:
+            return self.series(order=self.order) if self.order is not None else self.series()
+        return self.input, self.target
 
     def __call__(self, res: Reservoir) -> float:
         
@@ -57,17 +51,25 @@ class TaskFitness(ReservoirFitness):
         if not self.self_loops:
             res_ = res.no_selfloops()
         
-        if checks_ok:   
-            self.input, self.target = self._generate_series()
-            res_.reset()
-            predictions = res_.bipolar().train(self.input, target=self.target)
-            err = np.nan if predictions is None else np.min((NRMSE(self.target[:, res.washout:], predictions), 1))
+        if checks_ok:
+            errors = []
+            for _ in range(5):  # 5 measurements
+                self.input, self.target = self._generate_series()
+                res_.reset()
+                predictions = res_.bipolar().train(self.input, target=self.target)
+                err = np.nan if predictions is None else np.min((NRMSE(self.target[:, res.washout:], predictions), 1))
+                errors.append(err)
+            if errors:
+                err = np.nanmean(errors)
+            else:
+                err = np.nan
             if self.verbose:
                 print(f'Skipped {self.skip_count}')
             self.skip_count = 0
         else:
             self.skip_count += 1
             err = np.nan
+        
         return err
     
 class MetricFitness(ReservoirFitness):
