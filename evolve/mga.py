@@ -1,6 +1,7 @@
 import os
 import logging
 import sqlite3
+import copy
 import jsonpickle
 import numpy as np
 from tqdm import tqdm
@@ -201,13 +202,15 @@ class ChromosomalMGA:
         self.fitness_cache = []  
         self.bsz = bsz  # batch size for logging
 
+        self.best = {}
+
         # nan tolerant fitness comparison
         if self.fitness_fn.high_good:
             self.better = lambda a, b: np.isnan(b) or a >= b
-            self.best_fitness = -float("inf")
+            self.best['fitness'] = -float('inf')
         else:
             self.better = lambda a, b: np.isnan(b) or a <= b
-            self.best_fitness = float("inf")
+            self.best['fitness'] = float('inf')
 
         self.base_chromosomes = self.model.get_chromosomes(mutate_rate, cross_rate, cross_style)
         self.pop_chromosomes = np.array([[bc.get_new() for _ in range(self.popsize)] for bc in self.base_chromosomes]).T
@@ -255,17 +258,11 @@ class ChromosomalMGA:
         # no mutex, adds too much overhead
         # kr, gm = get_metrics(reservoir)
 
-        self.reservoir = reservoir  # updating current reservoir
-
         with log_lock:  
-            if self.better(fitness, self.best_fitness):
-                self.best_fitness = fitness
-
-            self.logger.info(f"Epoch: {self.trial}, Fitness: {fitness}, Best Fitness: {self.best_fitness}")
-
+            self.logger.info(f"Epoch: {self.trial}, Fitness: {fitness}, Best Fitness: {self.best['fitness']}")
             data = (
                 self.run_id, self.trial, fitness, 
-                self.best_fitness, 0., 0., reservoir.size(),
+                self.best['fitness'], 0., 0., reservoir.size(),
                 self.fitness_fn.skip_count
             )
             self.fitness_cache.append(data)
@@ -281,7 +278,7 @@ class ChromosomalMGA:
                     conn.commit()
                     self.fitness_cache.clear()  # reset cache
     
-    def log_model(self):
+    def log_model(self, model: DGCA, reservoir: Reservoir, trial=None):
         """
         Save the final model and reservoir.
         """
@@ -291,11 +288,11 @@ class ChromosomalMGA:
             cursor.execute("""
                 INSERT INTO models (run_id, epoch, model, reservoir) 
                 VALUES (?, ?, ?, ?)
-            """, (self.run_id, self.trial, jsonpickle.encode(self.model), jsonpickle.encode(self.reservoir)))
+            """, (self.run_id, self.trial if not trial else trial, jsonpickle.encode(model), jsonpickle.encode(reservoir)))
 
             conn.commit()
 
-        print(f"Final model and reservoir stored in SQLite: {self.db_file}")
+        print(f"Model and reservoir stored in SQLite: {self.db_file}")
 
     def run(self, progress: bool=False):
         """
@@ -306,7 +303,8 @@ class ChromosomalMGA:
             f = self.contest()
             self.trial += 1
             if progress:
-                pbar.set_postfix({'fit': f, 'best': self.best_fitness})
+                pbar.set_postfix({'fit': f, 'best': self.best["fitness"]})
+        self.log_model(self.best['model'], self.best['reservoir'], trial=-1)
 
     def contest(self) -> float:
         """
@@ -357,7 +355,13 @@ class ChromosomalMGA:
             if self.better(fitness, chr.best_fitness):
                 chr.best_fitness = fitness
         if not(np.isnan(fitness)) and (self.db_file is not None):
+            # updating best fitness attributes
+            if self.better(fitness, self.best['fitness']):
+                self.best['fitness'] = fitness
+                self.best['model'] = copy.deepcopy(self.model)
+                self.best['reservoir'] = final_res.copy()
+
             self.log_fitness(fitness, final_res)
-            if self.heavy_log or self.trial == self.n_trials-1:
-                self.log_model()
+            if self.heavy_log:
+                self.log_model(self.model, final_res)
         return fitness

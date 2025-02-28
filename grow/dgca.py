@@ -1,7 +1,7 @@
 import numpy as np
 from util.consts import Q_B, Q_F, Q_M, Q_N, stable_sigmoid
 from grow.reservoir import Reservoir
-
+import copy
 
 def onehot(x: np.ndarray):
     """
@@ -112,15 +112,6 @@ class DGCA(object):
         pre = self.update_action(res)
         post = self.update_state(pre)
         return post
-
-    def copy(self):
-        """
-        Returns a copy of this DGCA.
-        """
-        out = DGCA(None)
-        out.w_action = np.copy(self.w_action)
-        out.w_state = np.copy(self.w_state)
-        return out
 
 
 
