@@ -1,7 +1,7 @@
 import numpy as np
 from grow.reservoir import Reservoir, check_conditions
 from measure.tasks import *
-from measure.metrics import kernel_rank, generalization_measure, linear_memory_capacity
+from measure.metrics import kernel_rank, generalization_measure, linear_memory_capacity, get_metrics
 
 
 NRMSE = lambda y,y_fit: np.mean(((y-y_fit)**2)/np.var(y))
@@ -89,14 +89,15 @@ class MetricFitness(ReservoirFitness):
     
     def _compute_metric(self, res):
         if self.metric == "KR":  
-            size = res.size()
-            return (1 - kernel_rank(res) / size)
+            return (kernel_rank(res) / res.size())
         if self.metric == "GM":
             return generalization_measure(res)
         if self.metric == "LMC":
             return linear_memory_capacity(res)
         if self.metric == "combined":
-            return (1 - kernel_rank(res) / size) + generalization_measure(res)
+            kr, gm = get_metrics(res)
+            print(kr, gm)
+            return (kr / res.size()) + gm
 
     def __call__(self, res: Reservoir) -> float:
         

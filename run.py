@@ -60,11 +60,11 @@ if __name__ == "__main__":
         "input_nodes": 0,
         "output_nodes": 0,
         "order": 10,
-        "task": "narma",
-        "max_size": 100,
-        "metric": None, 
+        "task": None,
+        "max_size": 200,
+        "metric": "combined", 
         "output_file": "fitness.db",
-        "heavy_log": True
+        "heavy_log": False
     }
 
     args = SimpleNamespace(**args_dict, run_id=args.run_id)

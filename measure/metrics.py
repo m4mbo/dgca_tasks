@@ -40,6 +40,9 @@ def generalization_measure(res: Reservoir,
         res.reset()
         output = res.run(input)
 
+    if np.any(np.isnan(output)):
+        return np.nan
+    
     # accounting for washout
     input = input[:, res.washout:]
     num_timesteps -= res.washout
@@ -96,6 +99,9 @@ def get_metrics(res: Reservoir,
     input = np.repeat(input, res.input_units, axis=0)
     res.reset()
     output = res.run(input)
+
+    if np.any(np.isnan(output)) or np.any(np.isinf(output)):
+        return np.nan, np.nan
 
     return kernel_rank(res, input, res.reservoir_state, num_timesteps), \
         generalization_measure(res, input, output, num_timesteps, epsilon, tau, num_bins)

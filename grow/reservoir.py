@@ -121,7 +121,7 @@ class Reservoir(GraphDef):
         """
         # assign colors based on states
         states_1d = self.states_1d()
-        cmap = plt.get_cmap('viridis', self.n_states + 1)
+        cmap = plt.get_cmap('gray', self.n_states + 1)
         state_colors = cmap(states_1d)
         g.vp['plot_color'] = g.new_vertex_property('vector<double>', state_colors)
         
