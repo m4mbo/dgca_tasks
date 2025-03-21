@@ -9,7 +9,7 @@ Developed for the Lancaster University BSc Computer Science thesis project. Find
 
 <div align="center">
     <img src="assets/3.png" width="200"/>
-    <p><em>Sample best-performing NARMA-10 reservoirs.</em></p>
+    <p><em>Sampled best-performing NARMA-10 reservoirs.</em></p>
 </div>
 
 ## Installing Dependencies
