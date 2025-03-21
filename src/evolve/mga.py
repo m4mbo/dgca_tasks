@@ -9,7 +9,6 @@ from grow.dgca import DGCA
 from grow.reservoir import Reservoir
 from evolve.fitness import ReservoirFitness
 from multiprocessing import Lock
-from measure.metrics import get_metrics
 from grow.runner import Runner
 
 

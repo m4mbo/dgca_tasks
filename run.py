@@ -1,11 +1,11 @@
 import argparse
 from types import SimpleNamespace
-from grow.runner import Runner
-from grow.reservoir import get_seed
-from evolve.fitness import TaskFitness, MetricFitness
-from evolve.mga import ChromosomalMGA, EvolvableDGCA
-from measure.tasks import narmax, santa_fe
-from util.consts import N_STATES
+from src.grow.runner import Runner
+from src.grow.reservoir import get_seed
+from src.evolve.fitness import TaskFitness, MetricFitness
+from src.evolve.mga import ChromosomalMGA, EvolvableDGCA
+from src.measure.tasks import narmax, santa_fe
+from src.util.consts import N_STATES
 
 def run_ga(run_id, args):
     """
