@@ -27,4 +27,4 @@ $ conda activate dgca_tasks
 ## Credits
 
 * [Matias Barandiaran](https://github.com/m4mbo) - Author.
-* James Stovol - Supervisor.
+* James Stovold - Supervisor.
