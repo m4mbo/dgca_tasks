@@ -52,7 +52,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args_dict = {
-        "pop_size": 30,
+        "pop_size": 6,
         "mutate_rate": 0.02,
         "cross_rate": 0.5,
         "cross_style": "cols",
@@ -60,9 +60,9 @@ if __name__ == "__main__":
         "input_nodes": 0,
         "output_nodes": 0,
         "order": 10,
-        "task": None,
+        "task": "narma",
         "max_size": 200,
-        "metric": "combined", 
+        "metric": None, 
         "output_file": "fitness.db",
         "heavy_log": False
     }

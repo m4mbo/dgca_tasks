@@ -1,5 +1,2 @@
-nb/
 *.pyc
-*.parquet
-exp/
-notebooks/
+data/

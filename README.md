@@ -1,1 +1,1 @@
-# DGCAs for Task-oriented ESN growth
+# Reservoir Developmental Graph Cellular Automata

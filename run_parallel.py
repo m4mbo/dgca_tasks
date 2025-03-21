@@ -1,5 +1,3 @@
-# 150 GA runs in parallel
-
 from joblib import Parallel, delayed
 from types import SimpleNamespace
 from run import run_ga

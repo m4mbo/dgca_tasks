@@ -171,10 +171,10 @@ class Reservoir(GraphDef):
             # assign positions and outline colors for input/output nodes
             for i, v in enumerate(input_nodes):
                 pos[g.vertex(v)] = (input_x, center_y - total_height_input / 2 + i * spacing)
-                outline_color[v] = [1, 1, 1, 0.8]  # red
+                outline_color[v] = [1, 0, 0, 0.8]  # red
             for i, v in enumerate(output_nodes):
                 pos[g.vertex(v)] = (output_x, center_y - total_height_output / 2 + i * spacing)
-                outline_color[v] = [1, 1, 1, 0.8]  # blue
+                outline_color[v] = [0, 0, 1, 0.8]  # blue
             for v in other_nodes:
                 pos[v] = other_pos[v]
                 outline_color[v] = [0, 0, 0, 0]  # transparent
