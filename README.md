@@ -3,12 +3,12 @@
 Developed for the Lancaster University BSc Computer Science thesis project. Find it attached in `bsc_thesis.pdf`.
 
 <div align="center">
-    <img src="res/1.png" width="200"/>
-    <img src="res/2.png" width="200"/>
+    <img src="assets/1.png" width="200"/>
+    <img src="assets/2.png" width="200"/>
 </div>
 
 <div align="center">
-    <img src="res/3.png" width="200"/>
+    <img src="assets/3.png" width="200"/>
     <p><em>Sample best-performing NARMA-10 reservoirs.</em></p>
 </div>
 
